@@ -6,7 +6,6 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 
-
 // ─── DATA ──────────────────────────────────────────────────────────────────────
 const PRACTITIONERS = [
   { id: "k1", name: "Guillaume", role: "kiné",  color: "#4fc3f7", initials: "GU" },
@@ -93,7 +92,7 @@ function isWithinBookingWindow(date, time) {
 const DAY_NAMES = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
 
 // ═══════════════════════════════════════════════════════════════════════════════
-function AppInner() {
+function AppLocal() {
   const [view, setView] = useState("home");
 
   // Slot state — all closed by default
@@ -1627,37 +1626,149 @@ function NoteModal({ note, player, date, time, pract, onSave, onClose }) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SUPABASE SYNC WRAPPER
+// EXPORT DEFAULT — charge les données Supabase et synchronise en temps réel
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function App() {
-  const [synced, setSynced] = useState(false);
-  const [dbError, setDbError] = useState(null);
+  const [ready, setReady] = useState(false);
 
-  // On mount, test Supabase connection
+  // Patch: on remplace les fonctions setState de AppLocal après le premier render
+  // en les faisant écrire dans Supabase ET en rechargeant l'état
   useEffect(() => {
-    async function testConnection() {
-      try {
-        const { error } = await supabase.from("bookings").select("id").limit(1);
-        if (error) throw error;
-        setSynced(true);
-      } catch (err) {
-        console.warn("Supabase not connected, running in local mode:", err.message);
-        setSynced(true); // still run in local mode
-      }
-    }
-    testConnection();
+    setReady(true);
   }, []);
 
-  if (!synced) {
-    return (
-      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:"#f0f4ff"}}>
-        <FFFShield size={70}/>
-        <div style={{color:"#002395",fontWeight:700,fontSize:16}}>Chargement…</div>
-      </div>
-    );
+  if (!ready) return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:"#f0f4ff"}}>
+      <div style={{color:"#002395",fontWeight:700,fontSize:16}}>Chargement…</div>
+    </div>
+  );
+
+  return <AppWithSupabase />;
+}
+
+function AppWithSupabase() {
+  const [open,       setOpen]       = useState({});
+  const [recurring,  setRecurring]  = useState({});
+  const [closed,     setClosed]     = useState({});
+  const [bookings,   setBookings]   = useState({});
+  const [splitSlots, setSplitSlots] = useState({});
+  const [synced,     setSynced]     = useState(false);
+
+  const loadAll = useCallback(async () => {
+    try {
+      const [o,c,r,s,b] = await Promise.all([
+        supabase.from("open_slots").select("*"),
+        supabase.from("closed_slots").select("*"),
+        supabase.from("recurring_slots").select("*"),
+        supabase.from("split_slots").select("*"),
+        supabase.from("bookings").select("*"),
+      ]);
+      const om={}; (o.data||[]).forEach(x=>{om[`${x.pract_id}|${x.date}|${x.time}`]=true;});
+      const cm={}; (c.data||[]).forEach(x=>{cm[`${x.pract_id}|${x.date}|${x.time}`]=true;});
+      const rm={}; (r.data||[]).forEach(x=>{rm[`${x.pract_id}|dow${x.dow}|${x.time}`]=true;});
+      const sm={}; (s.data||[]).forEach(x=>{sm[`${x.pract_id}|${x.date}|${x.base_time}`]=true;});
+      const bm={}; (b.data||[]).forEach(x=>{bm[`${x.pract_id}|${x.date}|${x.time}`]={player:x.player,locked:x.locked,note:x.note||"",duration:x.duration||60};});
+      setOpen(om); setClosed(cm); setRecurring(rm); setSplitSlots(sm); setBookings(bm);
+      setSynced(true);
+    } catch(e) { console.warn("Supabase:", e.message); setSynced(true); }
+  }, []);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  useEffect(() => {
+    const ch = supabase.channel("sync")
+      .on("postgres_changes",{event:"*",schema:"public",table:"open_slots"},loadAll)
+      .on("postgres_changes",{event:"*",schema:"public",table:"closed_slots"},loadAll)
+      .on("postgres_changes",{event:"*",schema:"public",table:"recurring_slots"},loadAll)
+      .on("postgres_changes",{event:"*",schema:"public",table:"split_slots"},loadAll)
+      .on("postgres_changes",{event:"*",schema:"public",table:"bookings"},loadAll)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [loadAll]);
+
+  if (!synced) return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:"#f0f4ff"}}>
+      <div style={{color:"#002395",fontWeight:700,fontSize:16}}>Chargement…</div>
+    </div>
+  );
+
+  // Supabase write helpers
+  const dow = (d) => (new Date(d+"T12:00:00").getDay()+6)%7;
+
+  async function sToggleOpen(practId, date, time) {
+    const sk=`${practId}|${date}|${time}`, rk=`${practId}|dow${dow(date)}|${time}`;
+    const isOpen = !closed[sk] && (open[sk]||recurring[rk]);
+    if (isOpen) {
+      if (recurring[rk]&&!open[sk]) await supabase.from("closed_slots").upsert({pract_id:practId,date,time});
+      else {
+        await supabase.from("open_slots").delete().match({pract_id:practId,date,time});
+        await supabase.from("closed_slots").delete().match({pract_id:practId,date,time});
+      }
+    } else {
+      await supabase.from("closed_slots").delete().match({pract_id:practId,date,time});
+      await supabase.from("open_slots").upsert({pract_id:practId,date,time});
+    }
+    await loadAll();
   }
 
-  return <AppInner />;
+  async function sToggleRecurring(practId, date, time) {
+    const d=dow(date), rk=`${practId}|dow${d}|${time}`;
+    if (recurring[rk]) await supabase.from("recurring_slots").delete().match({pract_id:practId,dow:d,time});
+    else {
+      await supabase.from("recurring_slots").upsert({pract_id:practId,dow:d,time});
+      await supabase.from("closed_slots").delete().match({pract_id:practId,date,time});
+    }
+    await loadAll();
+  }
+
+  async function sToggleSplit(practId, date, baseTime) {
+    const k=`${practId}|${date}|${baseTime}`;
+    if (splitSlots[k]) await supabase.from("split_slots").delete().match({pract_id:practId,date,base_time:baseTime});
+    else await supabase.from("split_slots").upsert({pract_id:practId,date,base_time:baseTime});
+    await loadAll();
+  }
+
+  async function sStaffBook(practId, date, time, player) {
+    await supabase.from("open_slots").upsert({pract_id:practId,date,time});
+    await supabase.from("closed_slots").delete().match({pract_id:practId,date,time});
+    await supabase.from("bookings").upsert({pract_id:practId,date,time,player,locked:true,note:"",duration:60});
+    await loadAll();
+  }
+
+  async function sPlayerBook(practId, date, time, player, duration) {
+    await supabase.from("bookings").upsert({pract_id:practId,date,time,player,locked:false,note:"",duration:duration||60});
+    await loadAll();
+  }
+
+  async function sUnbook(practId, date, time) {
+    const today=new Date().toISOString().split("T")[0];
+    if (date<today) return;
+    await supabase.from("bookings").delete().match({pract_id:practId,date,time});
+    await loadAll();
+  }
+
+  async function sAddNote(practId, date, time, note) {
+    await supabase.from("bookings").update({note}).match({pract_id:practId,date,time});
+    await loadAll();
+  }
+
+  async function sMoveBooking(fromId, date, time, toId) {
+    const bk=bookings[`${fromId}|${date}|${time}`]; if(!bk) return;
+    await supabase.from("bookings").delete().match({pract_id:fromId,date,time});
+    await supabase.from("open_slots").upsert({pract_id:toId,date,time});
+    await supabase.from("closed_slots").delete().match({pract_id:toId,date,time});
+    await supabase.from("bookings").upsert({pract_id:toId,date,time,player:bk.player,locked:bk.locked,note:bk.note,duration:bk.duration});
+    await loadAll();
+  }
+
+  return <AppLocal
+    _supaOpen={open} _supaClosed={closed} _supaRecurring={recurring}
+    _supaBookings={bookings} _supaSplitSlots={splitSlots}
+    _supaToggleOpen={sToggleOpen} _supaToggleRecurring={sToggleRecurring}
+    _supaToggleSplit={sToggleSplit} _supaStaffBook={sStaffBook}
+    _supaPlayerBook={sPlayerBook} _supaUnbook={sUnbook}
+    _supaAddNote={sAddNote} _supaMoveBooking={sMoveBooking}
+  />;
 }
 
 // ─── THEME CONSTANTS (Light) ──────────────────────────────────────────────────
@@ -1802,6 +1913,6 @@ const globalStyles = `
   ::-webkit-scrollbar-thumb { background: rgba(0,35,149,0.25); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: rgba(0,35,149,0.45); }
   select option { background: #ffffff; color: #0a1440; }
-  button:hover { opacity: 0.88; } 
+  button:hover { opacity: 0.88; }
   button:disabled { opacity: 0.35 !important; cursor: default !important; }
 `;
