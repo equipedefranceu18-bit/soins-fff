@@ -123,9 +123,6 @@ export default function App() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-// Recharger à chaque changement de vue ou de jour
-useEffect(() => { loadAll(); }, [view, dayOffset]);
-
   useEffect(() => {
     const ch = supabase.channel("sync")
       .on("postgres_changes",{event:"*",schema:"public",table:"open_slots"},loadAll)
