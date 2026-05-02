@@ -540,7 +540,7 @@ function PlayerView({
   const activeDayObj = allDays.find(d => fmtDate(d) === activeDay) || allDays[0];
   const activeIdx = allDays.findIndex(d => fmtDate(d) === activeDay);
 
-  function goDay(delta) {
+  function goDay(delta) {     loadAll();
     const newIdx = activeIdx + delta;
     if (newIdx < 0) {
       setDayOffset(o => Math.max(0, o - 7));
