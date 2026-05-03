@@ -1594,7 +1594,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         cursor: isPastDay ? "default" : "pointer",
       }}
         onClick={() => !isPastDay && handleCellClick(k.id, time)}
-        title={booking ? `${booking.player}` : slotOpen ? `Ouvert ${is1h?"1h":"30'"}` : "Fermé — cliquer pour ouvrir"}>
+        title={booking ? `${booking.player}` : slotOpen ? `Ouvert ${getSlotDuration(k.id,date,time)===60?"1h":"30'"}` : "Fermé — cliquer pour ouvrir"}>
         {indicator}
       </div>
     );
