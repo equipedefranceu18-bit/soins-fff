@@ -893,12 +893,16 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
   }
 
   // Nombre de lignes qu'occupe un slot selon sa durée
+  // span=2 seulement si duration=60 ET la ligne baseTimes[idx+1] est bien exactement time+30min
   function slotRowSpan(practId, time) {
     const dur = getSlotDuration(practId, d, time);
     if (dur !== 60) return 1;
-    // Vérifier que la ligne suivante existe dans baseTimes
+    const [h, m] = time.split(":").map(Number);
+    let nh = h, nm = m + 30;
+    if (nm >= 60) { nh++; nm = 0; }
+    const next30 = `${String(nh).padStart(2,"0")}:${String(nm).padStart(2,"0")}`;
     const idx = timeToRow(time);
-    if (idx >= 0 && baseTimes[idx + 1]) return 2;
+    if (idx >= 0 && baseTimes[idx + 1] === next30) return 2;
     return 1;
   }
 
@@ -980,12 +984,16 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
   function KineColumn({ p }) {
     const slots = getSlotsForContext(p.id, d).filter(t => baseTimes.includes(t));
     // Filtrer les slots qui sont couverts par un slot 1h précédent
+    // On ne couvre que le time exactement 30 min après (pas juste le suivant dans baseTimes)
     const covered = new Set();
     for (const time of slots) {
       const span = slotRowSpan(p.id, time);
       if (span === 2) {
-        const nextIdx = timeToRow(time) + 1;
-        if (nextIdx < baseTimes.length) covered.add(baseTimes[nextIdx]);
+        const [h, m] = time.split(":").map(Number);
+        let nh = h, nm = m + 30;
+        if (nm >= 60) { nh++; nm = 0; }
+        const next30 = `${String(nh).padStart(2,"0")}:${String(nm).padStart(2,"0")}`;
+        covered.add(next30);
       }
     }
     const visibleSlots = slots.filter(t => !covered.has(t));
@@ -1021,8 +1029,10 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     for (const time of slots) {
       const span = slotRowSpan(p.id, time);
       if (span === 2) {
-        const nextIdx = timeToRow(time) + 1;
-        if (nextIdx < baseTimes.length) covered.add(baseTimes[nextIdx]);
+        const [h, m] = time.split(":").map(Number);
+        let nh = h, nm = m + 30;
+        if (nm >= 60) { nh++; nm = 0; }
+        covered.add(`${String(nh).padStart(2,"0")}:${String(nm).padStart(2,"0")}`);
       }
     }
     const visibleSlots = slots.filter(t => !covered.has(t));
