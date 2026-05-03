@@ -332,6 +332,7 @@ export default function App() {
       {view === "home" && <Home setView={setView} />}
       {view === "player" && (
         <PlayerView
+          loadAll={loadAll}
           playerName={playerName} setPlayerName={setPlayerName}
           playerMode={playerMode} setPlayerMode={setPlayerMode}
           bookingRole={bookingRole} setBookingRole={setBookingRole}
@@ -520,6 +521,7 @@ function Home({ setView }) {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 function PlayerView({
+  loadAll,
   playerName, setPlayerName, playerMode, setPlayerMode,
   bookingRole, setBookingRole, days, dayOffset, setDayOffset,
   kines, osteos, selectedPract, setSelectedPract,
@@ -540,7 +542,8 @@ function PlayerView({
   const activeDayObj = allDays.find(d => fmtDate(d) === activeDay) || allDays[0];
   const activeIdx = allDays.findIndex(d => fmtDate(d) === activeDay);
 
-  function goDay(delta) {     loadAll();
+  function goDay(delta) {
+    loadAll(); // Recharger les données depuis Supabase
     const newIdx = activeIdx + delta;
     if (newIdx < 0) {
       setDayOffset(o => Math.max(0, o - 7));
