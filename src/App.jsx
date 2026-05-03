@@ -111,7 +111,7 @@ export default function App() {
         supabase.from("split_slots").select("*"),
         supabase.from("bookings").select("*"),
       ]);
-      const om={}; (o.data||[]).forEach(x=>{om[`${x.pract_id}|${x.date}|${x.time}`]=true;});
+      const om={}; (o.data||[]).forEach(x=>{om[`${x.pract_id}|${x.date}|${x.time}`]=x.duration||30;});
       const cm={}; (c.data||[]).forEach(x=>{cm[`${x.pract_id}|${x.date}|${x.time}`]=true;});
       const rm={}; (r.data||[]).forEach(x=>{rm[`${x.pract_id}|dow${x.dow}|${x.time}`]=true;});
       const sm={}; (s.data||[]).forEach(x=>{sm[`${x.pract_id}|${x.date}|${x.base_time}`]=true;});
@@ -218,6 +218,10 @@ export default function App() {
     if (closed[sk]) return false;
     return !!(open[sk] || recurring[rk]);
   }
+  function getSlotDuration(practId, date, time) {
+    const sk = slotKey(practId, date, time);
+    return open[sk] || 30; // duration stockée dans open (30 ou 60)
+  }
   function isRecurring(practId, date, time) {
     return !!recurring[recurKey(practId, dowOf(date), time)];
   }
@@ -247,7 +251,7 @@ export default function App() {
   }
 
   // ── staff slot actions ────────────────────────────────────────────────────────
-  async function toggleOpen(practId, date, time) {
+  async function toggleOpen(practId, date, time, duration=30) {
     const sk = slotKey(practId, date, time);
     const rk = recurKey(practId, dowOf(date), time);
     if (isSlotOpen(practId, date, time)) {
@@ -259,7 +263,7 @@ export default function App() {
       }
     } else {
       await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
-      await supabase.from("open_slots").upsert({pract_id:practId, date, time});
+      await supabase.from("open_slots").upsert({pract_id:practId, date, time, duration});
     }
     await loadAll();
   }
@@ -714,6 +718,7 @@ function PlayerView({
           selectedPract={selectedPract} selectedDate={selectedDate} selectedTime={selectedTime}
           isAvailable={isAvailable} isSlotOpen={isSlotOpen} getSlotsForContext={getSlotsForContext} isSplit={isSplit}
           onSlotClick={handleSlotClick} bookings={bookings} playerName={playerName} getBooking={getBooking}
+          getSlotDuration={getSlotDuration}
         />
 
       {canConfirm && (
@@ -852,7 +857,7 @@ function ByPractGrid({ practitioners, days, selectedPract, onPractSelect, select
 }
 
 function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, selectedTime,
-  isAvailable, isSlotOpen, getSlotsForContext, isSplit, onSlotClick, bookings, playerName, getBooking }) {
+  isAvailable, isSlotOpen, getSlotsForContext, isSplit, onSlotClick, bookings, playerName, getBooking, getSlotDuration }) {
 
   const H1 = 56;
   const H2 = 28;
@@ -967,16 +972,14 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     </div>
   );
 
-  // Helper: pour un praticien spécifique, est-ce que time ET time+30' sont ouverts/réservés ?
+  // Fusionner seulement si les deux créneaux ont été ouverts intentionnellement en "1h" (duration=60)
   function isPair(p, time) {
     const [h, m] = time.split(":").map(Number);
     let nextH = h, nextM = m + 30;
     if (nextM >= 60) { nextH++; nextM = 0; }
     if (nextH > 23) return false;
     const nextTime = `${String(nextH).padStart(2,"0")}:${String(nextM).padStart(2,"0")}`;
-    const hasThis = isSlotOpen(p.id, d, time) || !!getBooking(p.id, d, time);
-    const hasNext = isSlotOpen(p.id, d, nextTime) || !!getBooking(p.id, d, nextTime);
-    return hasThis && hasNext;
+    return getSlotDuration(p.id, d, time)===60 && getSlotDuration(p.id, d, nextTime)===60;
   }
 
   // Construire les lignes — chaque ligne est un créneau de 30'
@@ -1396,11 +1399,11 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             staffTarget={staffTarget}
             getBooking={getBooking} isSlotOpen={isSlotOpen} isRecurring={isRecurring}
             getSlotsForContext={getSlotsForContext} isSplit={isSplit}
+            getSlotDuration={getSlotDuration}
             toggleOpen={toggleOpen}
-            onCellClick={(practId, date, time) => {
+            onCellClick={(practId, date, time, duration) => {
               const booking = getBooking(practId, date, time);
               if (booking) {
-                // Always open the booking action modal (note + move)
                 setMoveModal({ practId, date, time, booking });
                 return;
               }
@@ -1411,7 +1414,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
               } else if (dvSubMode === "split") {
                 if (!time.endsWith(":30")) toggleSplit(practId, date, time);
               } else {
-                toggleOpen(practId, date, time);
+                toggleOpen(practId, date, time, duration||30);
               }
             }}
             unbook={unbook}
@@ -1436,7 +1439,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
 // The time axis shows base 1h slots. Split kinés show 2×30' within their H1 space.
 // Other kinés keep H1 — no forced split bleeding across columns.
 function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpen, isRecurring,
-  getSlotsForContext, isSplit, onCellClick, unbook, toggleOpen }) {
+  getSlotsForContext, isSplit, onCellClick, unbook, toggleOpen, getSlotDuration }) {
 
   const isPastDay = isPast(date);
   const H30 = 28, HEADER = 48;
@@ -1479,18 +1482,16 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
 
   async function openWithDuration(duration, practId, time) {
     if (duration === 60) {
-      // 1 heure : ouvrir ce créneau ET le suivant (2 × 30')
-      onCellClick(practId, date, time);
+      onCellClick(practId, date, time, 60);
       const [h, m] = time.split(":").map(Number);
       let nextH = h, nextM = m + 30;
       if (nextM >= 60) { nextH++; nextM = 0; }
       if (nextH <= 23) {
         const nextTime = `${String(nextH).padStart(2,"0")}:${String(nextM).padStart(2,"0")}`;
-        onCellClick(practId, date, nextTime);
+        onCellClick(practId, date, nextTime, 60);
       }
     } else {
-      // 30 min : ouvrir uniquement ce créneau
-      onCellClick(practId, date, time);
+      onCellClick(practId, date, time, 30);
     }
   }
 
@@ -1507,7 +1508,9 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       const nextTime = `${String(nextH).padStart(2,"0")}:${String(nextM).padStart(2,"0")}`;
       const { booking: b1, slotOpen: o1 } = getSlotStatus(k, time);
       const { booking: b2, slotOpen: o2 } = getSlotStatus(k, nextTime);
-      const hasBoth = (b1||o1) && (b2||o2) && displayTimes.includes(nextTime);
+      // Fusionner seulement si les deux créneaux sont ouverts ET ont été marqués duration=60
+      const bothOpen60 = o1 && o2 && getSlotDuration(k.id, date, time)===60 && getSlotDuration(k.id, date, nextTime)===60;
+      const hasBoth = bothOpen60 && displayTimes.includes(nextTime);
       if (hasBoth) {
         processed.add(time);
         processed.add(nextTime);
