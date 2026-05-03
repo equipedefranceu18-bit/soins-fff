@@ -1500,26 +1500,8 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   // en fusionnant les paires consécutives 30'+30' en un bloc 1h
   function buildKineRows(k) {
     const rows = [];
-    const processed = new Set();
     for (const time of displayTimes) {
-      if (processed.has(time)) continue;
-      const [h, m] = time.split(":").map(Number);
-      let nextH = h, nextM = m + 30;
-      if (nextM >= 60) { nextH++; nextM = 0; }
-      const nextTime = `${String(nextH).padStart(2,"0")}:${String(nextM).padStart(2,"0")}`;
-      const { booking: b1, slotOpen: o1 } = getSlotStatus(k, time);
-      const { booking: b2, slotOpen: o2 } = getSlotStatus(k, nextTime);
-      // Fusionner seulement si les deux créneaux sont ouverts ET ont été marqués duration=60
-      const bothOpen60 = o1 && o2 && getSlotDuration(k.id, date, time)===60 && getSlotDuration(k.id, date, nextTime)===60;
-      const hasBoth = bothOpen60 && displayTimes.includes(nextTime);
-      if (hasBoth) {
-        processed.add(time);
-        processed.add(nextTime);
-        rows.push({ time, nextTime, merged: true, h: H30*2 });
-      } else {
-        processed.add(time);
-        rows.push({ time, nextTime: null, merged: false, h: H30 });
-      }
+      rows.push({ time, merged: false, h: H30 });
     }
     return rows;
   }
@@ -1534,10 +1516,11 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
 
     const commonStyle = {
       height: h, flexShrink: 0,
-      borderBottom: `1px solid ${T.border2}`,
+      borderBottom: time.endsWith(":00") ? `1px solid ${T.border}` : `1px solid ${T.border2}`,
       borderRight: `1px solid ${T.border}`,
       overflow: "hidden",
       transition: "background 0.1s",
+      background: time.endsWith(":30") ? T.surface3+"88" : T.surface,
     };
 
     let bg = T.surface, bl = "3px solid transparent", indicator = null;
@@ -1563,12 +1546,13 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     } else if (slotOpen) {
       bg = rec ? k.color+"14" : k.color+"0c";
       bl = rec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
+      const dur = getSlotDuration(k.id, date, time);
       indicator = (
         <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:0}}>
           <span style={{fontSize:12, color:k.color, fontWeight:800, opacity:0.7}}>
             {rec ? "↺" : "✓"}
           </span>
-          <span style={{fontSize:7, color:k.color+"99", fontWeight:600}}>{is1h ? "1h" : "30'"}</span>
+          <span style={{fontSize:7, color:k.color+"99", fontWeight:600}}>{dur===60?"1h":"30'"}</span>
         </div>
       );
     } else {
@@ -1621,7 +1605,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
             <div key={`axis-${time}`} style={{
               height: H30, flexShrink:0,
               background: time.endsWith(":00") ? T.surface2 : T.surface3,
-              borderBottom:`1px solid ${T.border2}`,
+              borderBottom: time.endsWith(":00") ? `1px solid ${T.border}` : `1px solid ${T.border2}`,
               borderRight:`1px solid ${T.border}`,
               display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 8px",
             }}>
