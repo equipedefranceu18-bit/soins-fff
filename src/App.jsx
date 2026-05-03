@@ -1457,6 +1457,16 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
 
   const isPastDay = isPast(date);
   const H30 = 28, HEADER = 48;
+
+  // Vrai si ce créneau est dans le passé (jour passé OU aujourd'hui mais heure dépassée)
+  function isSlotPast(time) {
+    if (isPastDay) return true;
+    if (date > todayStr()) return false;
+    // Même jour — comparer l'heure
+    const [h, m] = time.split(":").map(Number);
+    const now = new Date();
+    return h < now.getHours() || (h === now.getHours() && m <= now.getMinutes());
+  }
   const [durationPicker, setDurationPicker] = useState(null); // {practId, time}
   const [defaultDuration, setDefaultDuration] = useState(60); // 30 ou 60
 
@@ -1533,9 +1543,11 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       const covBooking = getBooking(k.id, date, coveringTime);
       const covOpen = isSlotOpen(k.id, date, coveringTime);
       const covRec = isRecurring(k.id, date, coveringTime);
+      const covPast = isSlotPast(coveringTime);
       let bg = T.surface3+"88";
       let bl = "3px solid transparent";
-      if (covBooking) { bg = k.color+"44"; bl = `3px solid ${k.color}`; }
+      if (covPast && !covBooking) { bg = "#f0f0f0"; }
+      else if (covBooking) { bg = k.color+"44"; bl = `3px solid ${k.color}`; }
       else if (covOpen) {
         bg = covRec ? k.color+"14" : k.color+"0c";
         bl = covRec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
@@ -1547,6 +1559,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           borderRight: `1px solid ${T.border}`,
           background: bg, borderLeft: bl,
           overflow: "hidden",
+          opacity: covPast && !covBooking ? 0.45 : 1,
         }} />
       );
     }
@@ -1559,9 +1572,25 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       transition: "background 0.1s",
     };
 
+    const slotPast = isSlotPast(time);
+
     let bg = isHour ? T.surface : T.surface3+"88";
     let bl = "3px solid transparent";
     let indicator = null;
+
+    // Créneau passé sans réservation → grisé non cliquable
+    if (slotPast && !booking) {
+      return (
+        <div key={`${k.id}-${time}`} style={{
+          ...commonStyle,
+          background: "#f0f0f0",
+          borderLeft: "3px solid transparent",
+          cursor: "default",
+          opacity: 0.45,
+          display:"flex", alignItems:"center", justifyContent:"center",
+        }} />
+      );
+    }
 
     if (booking) {
       bg = k.color+"44"; bl = `3px solid ${k.color}`;
