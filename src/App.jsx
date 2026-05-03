@@ -986,7 +986,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     return (
       <div key={baseTime} style={{borderBottom:`1px solid ${T.border2}`}}>
         {/* Ligne axe temps */}
-        <div style={{display:"flex", minHeight:H*2}}>
+        <div style={{display:"flex", minHeight:H*2, width:"100%"}}>
           <div style={{width:70,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",alignItems:"flex-end",justifyContent:"center",padding:"0 8px",background:T.surface2}}>
             <span style={{fontSize:10,fontWeight:700,color:T.textMid}}>{baseTime}</span>
             <div style={{fontSize:7,color:"#e05090",marginTop:2}}>
@@ -996,13 +996,11 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
           </div>
 
           {/* Colonne Kinés */}
-          <div style={{flex:4,borderRight:`2px solid ${T.navy}22`,background:T.surface,opacity:past?0.45:1}}>
+          <div style={{flex:4,borderRight:`2px solid ${T.navy}22`,background:T.surface,opacity:past?0.45:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
             {splitK.length === 0 && availK1h.length === 0 ? (
-              <div style={{height:H*2,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <span style={{fontSize:9,opacity:0.12}}>—</span>
-              </div>
+              <span style={{fontSize:9,opacity:0.12}}>—</span>
             ) : (
-              <div style={{display:"flex",height:H*2,alignItems:"center",justifyContent:"center",gap:4,padding:"0 4px",flexWrap:"wrap"}}>
+              <div style={{display:"flex",width:"100%",height:H*2,alignItems:"center",justifyContent:"center",gap:4,padding:"0 4px",flexWrap:"wrap"}}>
                 {/* Praticiens 1h */}
                 {availK1h.map(p => (
                   <div key={p.id} style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:H*2-6,minWidth:40,padding:"0 6px",background:selectedPract===p.id&&selectedDate===d&&selectedTime===baseTime?p.color:p.color+"22",border:`2px solid ${p.color}`,borderRadius:10,cursor:"pointer",boxShadow:selectedPract===p.id&&selectedDate===d&&selectedTime===baseTime?`0 2px 8px ${p.color}44`:"none"}}
