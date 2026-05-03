@@ -996,7 +996,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
           </div>
 
           {/* Colonne Kinés */}
-          <div style={{flex:4,borderRight:`2px solid ${T.navy}22`,background:T.surface,opacity:past?0.45:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{flex:4,borderRight:`2px solid ${T.navy}44`,background:T.surface,opacity:past?0.45:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
             {splitK.length === 0 && availK1h.length === 0 ? (
               <span style={{fontSize:9,opacity:0.12}}>—</span>
             ) : (
