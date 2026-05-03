@@ -1245,7 +1245,7 @@ function StaffAuth({ staffPwd, setStaffPwd, onAuth, setView }) {
           onKeyDown={e=>e.key==="Enter"&&onAuth()} />
         <button style={{...css.btn,...css.btnStaff,width:"100%",marginTop:8}} onClick={onAuth}>Connexion</button>
         <button style={css.btnLink} onClick={()=>setView("home")}>← Retour</button>
-        <p style={{fontSize:11,opacity:0.4,marginTop:16}}>Mot de passe démo : staff2024</p>
+
       </div>
     </div>
   );
