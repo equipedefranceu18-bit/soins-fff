@@ -1013,27 +1013,37 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             <span style={{fontSize:9,color:T.textDim}}>1h</span>
           </div>
           <div style={{flex:4,borderRight:SEP,display:"flex",alignItems:"center",justifyContent:"center",
-            gap:6,padding:"0 8px",background:T.surface,opacity:past?0.45:1}}>
+            gap:6,padding:"0 4px",background:T.surface,opacity:past?0.45:1,position:"relative",height:H1}}>
             {kines.map(p => {
               const hasThis = isSlotOpen(p.id,d,time)||!!getBooking(p.id,d,time);
               const hasNext = isSlotOpen(p.id,d,nextTime)||!!getBooking(p.id,d,nextTime);
               if (!hasThis && !hasNext) return <div key={p.id} style={{minWidth:44,flexShrink:0}}/>;
               const hasPair = hasThis && hasNext;
               const clickTime = hasThis ? time : nextTime;
-              return <Btn key={p.id} p={p} time={clickTime} h={hasPair?H1:H2} forceLabel={hasPair?"1h":clickTime} />;
+              const isAtBottom = !hasThis && hasNext; // seulement nextTime → aligné en bas
+              return (
+                <div key={p.id} style={{display:"flex",flexDirection:"column",justifyContent:hasPair?"center":isAtBottom?"flex-end":"flex-start",height:H1}}>
+                  <Btn p={p} time={clickTime} h={hasPair?H1:H2} forceLabel={hasPair?"1h":clickTime} />
+                </div>
+              );
             })}
             {!kines.some(p=>(isSlotOpen(p.id,d,time)||!!getBooking(p.id,d,time))||(isSlotOpen(p.id,d,nextTime)||!!getBooking(p.id,d,nextTime)))&&
               <span style={{fontSize:11,opacity:0.15}}>—</span>}
           </div>
           <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",
-            gap:4,padding:"0 4px",background:"#faf5ff",opacity:past?0.45:1}}>
+            gap:4,padding:"0 2px",background:"#faf5ff",opacity:past?0.45:1,height:H1}}>
             {osteos.map(p => {
               const hasThis = isSlotOpen(p.id,d,time)||!!getBooking(p.id,d,time);
               const hasNext = isSlotOpen(p.id,d,nextTime)||!!getBooking(p.id,d,nextTime);
               if (!hasThis && !hasNext) return null;
               const hasPair = hasThis && hasNext;
               const clickTime = hasThis ? time : nextTime;
-              return <Btn key={p.id} p={p} time={clickTime} h={hasPair?H1:H2} forceLabel={hasPair?"1h":clickTime} />;
+              const isAtBottom = !hasThis && hasNext;
+              return (
+                <div key={p.id} style={{display:"flex",flexDirection:"column",justifyContent:hasPair?"center":isAtBottom?"flex-end":"flex-start",height:H1}}>
+                  <Btn p={p} time={clickTime} h={hasPair?H1:H2} forceLabel={hasPair?"1h":clickTime} />
+                </div>
+              );
             })}
             {!osteos.some(p=>(isSlotOpen(p.id,d,time)||!!getBooking(p.id,d,time))||(isSlotOpen(p.id,d,nextTime)||!!getBooking(p.id,d,nextTime)))&&
               <span style={{fontSize:9,opacity:0.12}}>—</span>}
