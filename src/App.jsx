@@ -23,8 +23,8 @@ const PLAYERS = [
 ];
 
 const STAFF_PASSWORD = "staff2024";
-const STRAP_COLOR = "#ff7043"; // Orange unique pour tous les straps
-const STRAP_ID = "strap"; // pract_id virtuel pour les straps en Supabase
+const STRAP_COLOR = "#ff7043";
+const STRAP_ID = "strap";
 const BOOKING_ADVANCE_HOURS = 20;
 const CASCADE_AFTER_HOUR = 21; // slots from this hour onward require previous to be booked first
 
@@ -200,7 +200,6 @@ export default function App() {
     await loadAll();
   }
 
-  // Toggle strap slot (stored as booking with pract_id=STRAP_ID, player=date|time)
   async function toggleStrap(date, time) {
     const key = `${date}|${time}`;
     if (strapSlots[key]) {
@@ -383,6 +382,7 @@ export default function App() {
           confirmBooking={confirmBooking} bookings={bookings} getSlotDuration={getSlotDuration}
           confirmation={confirmation} setConfirmation={setConfirmation}
           myBookings={myBookings} cancelMyBooking={cancelMyBooking}
+          strapSlots={strapSlots}
           setView={setView}
         />
       )}
@@ -568,7 +568,7 @@ function PlayerView({
   kines, osteos, selectedPract, setSelectedPract,
   selectedDate, setSelectedDate, selectedTime, setSelectedTime,
   isAvailable, getBooking, isSlotOpen, getSlotsForContext, isSplit, confirmBooking, bookings, getSlotDuration,
-  confirmation, setConfirmation, myBookings, cancelMyBooking, setView
+  confirmation, setConfirmation, myBookings, cancelMyBooking, strapSlots, setView
 }) {
   // Tous les praticiens ensemble — kinés + ostéo dans la même vue
   const practitioners = [...kines, ...osteos];
@@ -598,7 +598,7 @@ function PlayerView({
     setSelectedDate(null); setSelectedTime(null); setSelectedPract(null);
   }
 
-  const [doubleBookingAlert, setDoubleBookingAlert] = useState(null);
+  const [doubleBookingAlert, setDoubleBookingAlert] = useState(null); // { date, existingPract }
 
   function handlePractSelect(id) {
     setSelectedPract(id === selectedPract ? null : id);
@@ -607,12 +607,15 @@ function PlayerView({
   function handleSlotClick(pId, date, time) {
     if (!isAvailable(pId, date, time)) return;
     if (!playerName.trim()) return;
+
+    // Vérifier si le joueur a déjà un RDV ce jour-là
     const existing = mb.find(b => b.date === date);
     if (existing && !(existing.date === selectedDate && existing.pId === selectedPract)) {
       const existPract = PRACTITIONERS.find(x => x.id === existing.pId);
       setDoubleBookingAlert({ date, existingPract: existPract, existingTime: existing.time });
       return;
     }
+
     if (selectedDate===date && selectedTime===time && selectedPract===pId) {
       setSelectedDate(null); setSelectedTime(null); setSelectedPract(null);
     } else {
@@ -655,22 +658,31 @@ function PlayerView({
 
   return (
     <div style={css.pageWrap}>
+      {/* Modal double réservation */}
       {doubleBookingAlert && (
         <div style={css.modalOverlay} onClick={() => setDoubleBookingAlert(null)}>
           <div style={{...css.modalCard, textAlign:"center", maxWidth:380}} onClick={e => e.stopPropagation()}>
             <div style={{fontSize:40, marginBottom:8}}>⚠️</div>
-            <h3 style={{margin:"0 0 8px", fontSize:17, color:T.navy, fontWeight:800}}>Un seul RDV par jour</h3>
+            <h3 style={{margin:"0 0 8px", fontSize:17, color:T.navy, fontWeight:800}}>
+              Un seul RDV par jour
+            </h3>
             <p style={{margin:"0 0 16px", fontSize:14, color:T.textDim, lineHeight:1.5}}>
               Tu as déjà un rendez-vous ce jour-là à <strong>{doubleBookingAlert.existingTime}</strong> avec{" "}
-              <strong style={{color: doubleBookingAlert.existingPract?.color}}>{doubleBookingAlert.existingPract?.name}</strong>.
+              <strong style={{color: doubleBookingAlert.existingPract?.color}}>
+                {doubleBookingAlert.existingPract?.name}
+              </strong>.
             </p>
             <p style={{margin:"0 0 20px", fontSize:13, color:T.textMid, background:T.surface2, borderRadius:10, padding:"10px 14px", lineHeight:1.6}}>
               Pour un deuxième soin, contacte directement ton kiné référent ou le staff médical.
             </p>
-            <button style={{...css.btn, ...css.btnPlayer, width:"100%"}} onClick={() => setDoubleBookingAlert(null)}>Compris ✓</button>
+            <button style={{...css.btn, ...css.btnPlayer, width:"100%"}}
+              onClick={() => setDoubleBookingAlert(null)}>
+              Compris ✓
+            </button>
           </div>
         </div>
       )}
+
       <div style={css.pageHeader}>
         <button style={css.backBtn} onClick={() => setView("home")}>←</button>
         <h2 style={css.pageTitle}>Réserver un soin</h2>
@@ -762,7 +774,7 @@ function PlayerView({
           selectedPract={selectedPract} selectedDate={selectedDate} selectedTime={selectedTime}
           isAvailable={isAvailable} isSlotOpen={isSlotOpen} getSlotsForContext={getSlotsForContext} isSplit={isSplit}
           onSlotClick={handleSlotClick} bookings={bookings} playerName={playerName} getBooking={getBooking}
-          getSlotDuration={getSlotDuration}
+          getSlotDuration={getSlotDuration} strapSlots={strapSlots}
         />
 
       {canConfirm && (
@@ -901,19 +913,38 @@ function ByPractGrid({ practitioners, days, selectedPract, onPractSelect, select
 }
 
 function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, selectedTime,
-  isAvailable, isSlotOpen, getSlotsForContext, isSplit, onSlotClick, bookings, playerName, getBooking, getSlotDuration }) {
+  isAvailable, isSlotOpen, getSlotsForContext, isSplit, onSlotClick, bookings, playerName, getBooking, getSlotDuration, strapSlots }) {
 
-  const H1 = 56;
-  const H2 = 28;
+  const ROW = 28; // hauteur d'une unité de 30 minutes en px
   const d = days.length === 1 ? fmtDate(days[0]) : null;
   if (!d) return null;
   const past = isPast(d);
   const osteos = practitioners.filter(p => p.role === "ostéo");
   const SEP = `2px solid ${T.navy}33`;
 
-  const baseTimes = [...new Set(
-    practitioners.flatMap(p => getSlotsForContext(p.id, d))
-  )].sort();
+  // Tous les times ouverts, triés
+  // + ajouter les time+30 pour chaque slot 1h (pour que le span=2 fonctionne même sans voisin)
+  const rawTimes = [...new Set(practitioners.flatMap(p => getSlotsForContext(p.id, d)))];
+  const extraTimes = [];
+  for (const p of practitioners) {
+    for (const time of rawTimes) {
+      if ((isSlotOpen(p.id, d, time) || !!getBooking(p.id, d, time)) && getSlotDuration(p.id, d, time) === 60) {
+        const [h, m] = time.split(":").map(Number);
+        let nh = h, nm = m + 30;
+        if (nm >= 60) { nh++; nm = 0; }
+        if (nh <= 23) extraTimes.push(`${String(nh).padStart(2,"0")}:${String(nm).padStart(2,"0")}`);
+      }
+    }
+  }
+  const baseTimes = [...new Set([...rawTimes, ...extraTimes])].sort();
+
+  if (baseTimes.length === 0) {
+    return (
+      <div style={css.gridSection}>
+        <div style={css.emptyHint}>Aucun créneau disponible ce jour.</div>
+      </div>
+    );
+  }
 
   function playerHasBookingAt(time) {
     if (!playerName) return false;
@@ -922,16 +953,38 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     );
   }
 
-  // Bouton individuel
-  function Btn({ p, time, h, forceLabel }) {
+  // Convertir un time "HH:MM" en index de ligne (unités de 30 min depuis le premier slot)
+  function timeToRow(time) {
+    return baseTimes.indexOf(time);
+  }
+
+  // Nombre de lignes qu'occupe un slot selon sa durée
+  // span=2 seulement si duration=60 ET la ligne baseTimes[idx+1] est bien exactement time+30min
+  function slotRowSpan(practId, time) {
+    const dur = getSlotDuration(practId, d, time);
+    if (dur !== 60) return 1;
+    const [h, m] = time.split(":").map(Number);
+    let nh = h, nm = m + 30;
+    if (nm >= 60) { nh++; nm = 0; }
+    const next30 = `${String(nh).padStart(2,"0")}:${String(nm).padStart(2,"0")}`;
+    const idx = timeToRow(time);
+    if (idx >= 0 && baseTimes[idx + 1] === next30) return 2;
+    return 1;
+  }
+
+  // Bouton individuel — positionné en grid row
+  function Btn({ p, time }) {
     const booked = !!getBooking(p.id, d, time);
     const open   = isSlotOpen(p.id, d, time);
-    if (!booked && !open) return <div style={{minWidth:44,flexShrink:0}} />;
+    if (!booked && !open) return null;
 
     const avail   = isAvailable(p.id, d, time);
     const sel     = selectedPract===p.id && selectedDate===d && selectedTime===time;
     const blocked = !booked && playerHasBookingAt(time);
-    const label   = forceLabel === "1h" ? "1h" : forceLabel?.includes(":") ? forceLabel : (time.endsWith(":30") ? "30'" : "1h");
+    const span    = slotRowSpan(p.id, time);
+    const label   = span === 2 ? "1h" : "30'";
+    const rowIdx  = timeToRow(time);
+    const h       = span * ROW - 6;
 
     let bg, border, textColor, cursor;
     if (booked)               { bg="#ebebeb"; border="#ccc";    textColor="#bbb"; cursor="not-allowed"; }
@@ -939,199 +992,176 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     else if (sel)             { bg=p.color;   border=p.color;   textColor="#fff"; cursor="pointer"; }
     else                      { bg=p.color+"25"; border=p.color; textColor=p.color; cursor="pointer"; }
 
+    const hasStrap = strapSlots && strapSlots[`${d}|${time}`];
     return (
-      <button style={{
-        display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-        height:h-6, minWidth:44, padding:"0 6px", flexShrink:0,
-        background:bg, border:`2px solid ${border}`, borderRadius:10,
-        cursor, gap:2, boxShadow:sel?`0 2px 10px ${p.color}55`:"none",
-      }}
-        onClick={()=>(avail&&!blocked&&!booked)&&onSlotClick(p.id,d,time)}
-        title={booked?"Réservé":blocked?"Déjà un RDV à cette heure":`${p.name} — ${label==="1h"?"1 heure":"30 min"}`}>
-        <span style={{fontSize:13,fontWeight:800,color:textColor}}>{p.initials}</span>
-        <span style={{fontSize:8,color:sel?"rgba(255,255,255,0.85)":booked?"#ccc":p.color+"99",fontWeight:700}}>
-          {label}
-        </span>
-      </button>
-    );
-  }
-
-  // Pour chaque kiné, affiche soit 1 grand bouton 1h, soit 2 mini-boutons 30' empilés
-  // L'ordre GU DE AL CL est toujours respecté
-  function KineCell({ p, baseTime }) {
-    const halfTime = `${baseTime.split(":")[0].padStart(2,"0")}:30`;
-    const split = isSplit(p.id, d, baseTime);
-
-    if (!split) {
-      return <Btn p={p} time={baseTime} h={H1} />;
-    }
-
-    // Créneau splitté : deux mini-boutons empilés
-    const open00 = isSlotOpen(p.id,d,baseTime) || !!getBooking(p.id,d,baseTime);
-    const open30 = isSlotOpen(p.id,d,halfTime) || !!getBooking(p.id,d,halfTime);
-    if (!open00 && !open30) return <div style={{minWidth:44,flexShrink:0}} />;
-
-    return (
-      <div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center",justifyContent:"center",height:H1}}>
-        {open00
-          ? <Btn p={p} time={baseTime} h={H2} />
-          : <div style={{height:H2-6,minWidth:44}} />}
-        {open30
-          ? <Btn p={p} time={halfTime} h={H2} />
-          : <div style={{height:H2-6,minWidth:44}} />}
+      <div key={`${p.id}-${time}`} style={{
+        gridRow: `${rowIdx + 1} / span ${span}`,
+        display:"flex", alignItems:"center", justifyContent:"center",
+        padding:"2px 2px", position:"relative",
+      }}>
+        <button style={{
+          display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+          height:h, width:"100%", minWidth:42, padding:"0 4px",
+          background:bg, border:`2px solid ${border}`, borderRadius:10,
+          cursor, gap:1, boxShadow:sel?`0 2px 10px ${p.color}55`:"none",
+          transition:"all 0.15s",
+        }}
+          onClick={()=>(avail&&!blocked&&!booked)&&onSlotClick(p.id,d,time)}
+          title={booked?"Réservé":blocked?"Déjà un RDV à cette heure":`${p.name} — ${label==="1h"?"1 heure":"30 min"}`}>
+          <span style={{fontSize:13,fontWeight:800,color:textColor}}>{p.initials}</span>
+          <span style={{fontSize:8,color:sel?"rgba(255,255,255,0.85)":booked?"#ccc":p.color+"99",fontWeight:700}}>
+            {label}
+          </span>
+        </button>
+        {hasStrap && (
+          <div style={{position:"absolute",top:2,right:2,background:STRAP_COLOR,color:"#fff",
+            borderRadius:4,fontSize:7,fontWeight:800,padding:"1px 3px",lineHeight:1.4,pointerEvents:"none",zIndex:1}}>🩹</div>
+        )}
       </div>
     );
   }
 
-  function OsteoCell({ p, baseTime }) {
-    const halfTime = `${baseTime.split(":")[0].padStart(2,"0")}:30`;
-    const split = isSplit(p.id, d, baseTime);
-    if (!split) return <Btn p={p} time={baseTime} h={H1} />;
-    const open00 = isSlotOpen(p.id,d,baseTime) || !!getBooking(p.id,d,baseTime);
-    const open30 = isSlotOpen(p.id,d,halfTime) || !!getBooking(p.id,d,halfTime);
-    if (!open00 && !open30) return null;
+  const nRows = baseTimes.length;
+  // gridTemplateRows: une ligne par time dans baseTimes
+  const gridRows = baseTimes.map(() => `${ROW}px`).join(" ");
+
+  // Axe temps : même CSS grid que les colonnes pour alignement parfait
+  const timeAxis = (
+    <div style={{
+      width:64, flexShrink:0,
+      display:"grid",
+      gridTemplateRows: gridRows,
+      borderRight:`1px solid ${T.border}`,
+    }}>
+      {baseTimes.map((time, i) => {
+        const isHour = time.endsWith(":00");
+        return (
+          <div key={time} style={{
+            gridRow: i+1,
+            background: isHour ? T.surface2 : T.surface3,
+            borderBottom: isHour ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
+            display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 8px",
+          }}>
+            <div style={{fontSize: isHour?11:9, fontWeight:isHour?700:400, color:isHour?T.textMid:T.textDim}}>
+              {time}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // Colonne kiné : CSS grid avec positionnement par row
+  function KineColumn({ p }) {
+    const slots = getSlotsForContext(p.id, d).filter(t => baseTimes.includes(t));
+    // Filtrer les slots qui sont couverts par un slot 1h précédent
+    // On ne couvre que le time exactement 30 min après (pas juste le suivant dans baseTimes)
+    const covered = new Set();
+    for (const time of slots) {
+      const span = slotRowSpan(p.id, time);
+      if (span === 2) {
+        const [h, m] = time.split(":").map(Number);
+        let nh = h, nm = m + 30;
+        if (nm >= 60) { nh++; nm = 0; }
+        const next30 = `${String(nh).padStart(2,"0")}:${String(nm).padStart(2,"0")}`;
+        covered.add(next30);
+      }
+    }
+    const visibleSlots = slots.filter(t => !covered.has(t));
+
     return (
-      <div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center",justifyContent:"center",height:H1}}>
-        {open00 ? <Btn p={p} time={baseTime} h={H2} /> : <div style={{height:H2-6,minWidth:44}} />}
-        {open30 ? <Btn p={p} time={halfTime} h={H2} /> : <div style={{height:H2-6,minWidth:44}} />}
+      <div style={{
+        display:"grid",
+        gridTemplateRows: gridRows,
+        flex:1, minWidth:52,
+        borderRight:`1px solid ${T.border}`,
+      }}>
+        {/* Lignes de fond (séparateurs) */}
+        {baseTimes.map((time, i) => (
+          <div key={`bg-${time}`} style={{
+            gridRow: i+1,
+            gridColumn: 1,
+            borderBottom: time.endsWith(":00") ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
+            background: time.endsWith(":00") ? T.surface : T.surface3+"88",
+            opacity: past ? 0.45 : 1,
+          }} />
+        ))}
+        {/* Boutons de slots */}
+        {visibleSlots.map(time => (
+          <Btn key={time} p={p} time={time} />
+        ))}
+      </div>
+    );
+  }
+
+  function OsteoColumn({ p }) {
+    const slots = getSlotsForContext(p.id, d).filter(t => baseTimes.includes(t));
+    const covered = new Set();
+    for (const time of slots) {
+      const span = slotRowSpan(p.id, time);
+      if (span === 2) {
+        const [h, m] = time.split(":").map(Number);
+        let nh = h, nm = m + 30;
+        if (nm >= 60) { nh++; nm = 0; }
+        covered.add(`${String(nh).padStart(2,"0")}:${String(nm).padStart(2,"0")}`);
+      }
+    }
+    const visibleSlots = slots.filter(t => !covered.has(t));
+    return (
+      <div style={{
+        display:"grid",
+        gridTemplateRows: gridRows,
+        flex:1, minWidth:52,
+        borderRight:`1px solid ${T.border}`,
+        background:"#faf5ff",
+      }}>
+        {baseTimes.map((time, i) => (
+          <div key={`bg-${time}`} style={{
+            gridRow: i+1,
+            gridColumn: 1,
+            borderBottom: time.endsWith(":00") ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
+            background: time.endsWith(":00") ? "#faf5ff" : "#f5eeff88",
+            opacity: past ? 0.45 : 1,
+          }} />
+        ))}
+        {visibleSlots.map(time => (
+          <Btn key={time} p={p} time={time} />
+        ))}
       </div>
     );
   }
 
   const header = (
-    <div style={{display:"flex",height:48,background:T.surface3,borderBottom:`2px solid ${T.border}`}}>
-      <div style={{width:70,flexShrink:0,borderRight:`1px solid ${T.border}`}} />
-      <div style={{flex:4,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+    <div style={{display:"flex", height:48, background:T.surface3, borderBottom:`2px solid ${T.border}`}}>
+      <div style={{width:64, flexShrink:0, borderRight:`1px solid ${T.border}`}} />
+      <div style={{flex:4, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
         borderRight:SEP,
-        background:d===todayStr()?T.navy+"14":isWeekend(days[0])?"#f5f0f8":T.surface3,
-        borderBottom:d===todayStr()?`3px solid ${T.navy}`:"none"}}>
-        <span style={{fontSize:12,fontWeight:700,color:T.textMid}}>💆 Kinésithérapie</span>
-        <span style={{fontSize:10,color:T.textDim}}>{kines.map(k=>k.name).join(" · ")}</span>
-        {d===todayStr()&&<div style={{width:6,height:6,borderRadius:"50%",background:T.navy,marginTop:2}}/>}
+        background:d===todayStr()?T.navy+"14":T.surface3}}>
+        <span style={{fontSize:12, fontWeight:700, color:T.textMid}}>💆 Kinésithérapie</span>
+        <span style={{fontSize:10, color:T.textDim}}>{kines.map(k=>k.name).join(" · ")}</span>
       </div>
-      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#f5eeff"}}>
-        <span style={{fontSize:12,fontWeight:700,color:"#9c27b0"}}>🦴 Ostéo</span>
-        <span style={{fontSize:10,color:T.textDim}}>Jean-Yves</span>
+      <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"#f5eeff"}}>
+        <span style={{fontSize:12, fontWeight:700, color:"#9c27b0"}}>🦴 Ostéo</span>
+        <span style={{fontSize:10, color:T.textDim}}>Jean-Yves</span>
       </div>
     </div>
   );
 
-  // Fusionner seulement si les deux créneaux ont été ouverts intentionnellement en "1h" (duration=60)
-  function isPair(p, time) {
-    const [h, m] = time.split(":").map(Number);
-    let nextH = h, nextM = m + 30;
-    if (nextM >= 60) { nextH++; nextM = 0; }
-    if (nextH > 23) return false;
-    const nextTime = `${String(nextH).padStart(2,"0")}:${String(nextM).padStart(2,"0")}`;
-    return getSlotDuration(p.id, d, time)===60 && getSlotDuration(p.id, d, nextTime)===60;
-  }
-
-  // Construire les lignes — chaque ligne est un créneau de 30'
-  // La fusion 1h se fait PER PRATICIEN dans le rendu du bouton
-  // Une ligne existe si au moins un praticien a ce créneau
-  const rows = [];
-  const processedTimes = new Set();
-
-  for (let i = 0; i < baseTimes.length; i++) {
-    const time = baseTimes[i];
-    if (processedTimes.has(time)) continue;
-
-    const [h, m] = time.split(":").map(Number);
-    let nextH = h, nextM = m + 30;
-    if (nextM >= 60) { nextH++; nextM = 0; }
-    const nextTime = `${String(nextH).padStart(2,"0")}:${String(nextM).padStart(2,"0")}`;
-
-    // Fusionner la ligne si au moins un praticien a une paire ET le créneau suivant est dans baseTimes
-    const allPracts = [...kines, ...osteos];
-    const anyPair = allPracts.some(p => isPair(p, time));
-    const nextIsConsecutive = baseTimes[i+1] === nextTime;
-
-    if (anyPair && nextIsConsecutive) {
-      // Ligne fusionnée H1 — affiche les deux demi-créneaux comme un seul bloc 1h
-      processedTimes.add(time);
-      processedTimes.add(nextTime);
-
-      rows.push(
-        <div key={time} style={{display:"flex", height:H1, borderBottom:`1px solid ${T.border2}`}}>
-          <div style={{width:70,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",
-            flexDirection:"column",alignItems:"flex-end",justifyContent:"center",
-            padding:"0 8px",background:T.surface2}}>
-            <span style={{fontSize:11,fontWeight:700,color:T.textMid}}>{time}</span>
-            <span style={{fontSize:9,color:T.textDim}}>1h</span>
-          </div>
-          <div style={{flex:4,borderRight:SEP,display:"flex",alignItems:"center",justifyContent:"center",
-            gap:6,padding:"0 4px",background:T.surface,opacity:past?0.45:1,position:"relative",height:H1}}>
-            {kines.map(p => {
-              const hasThis = isSlotOpen(p.id,d,time)||!!getBooking(p.id,d,time);
-              const hasNext = isSlotOpen(p.id,d,nextTime)||!!getBooking(p.id,d,nextTime);
-              if (!hasThis && !hasNext) return <div key={p.id} style={{minWidth:44,flexShrink:0}}/>;
-              const hasPair = hasThis && hasNext;
-              const clickTime = hasThis ? time : nextTime;
-              const isAtBottom = !hasThis && hasNext; // seulement nextTime → aligné en bas
-              return (
-                <div key={p.id} style={{display:"flex",flexDirection:"column",justifyContent:hasPair?"center":isAtBottom?"flex-end":"flex-start",height:H1}}>
-                  <Btn p={p} time={clickTime} h={hasPair?H1:H2} forceLabel={hasPair?"1h":clickTime} />
-                </div>
-              );
-            })}
-            {!kines.some(p=>(isSlotOpen(p.id,d,time)||!!getBooking(p.id,d,time))||(isSlotOpen(p.id,d,nextTime)||!!getBooking(p.id,d,nextTime)))&&
-              <span style={{fontSize:11,opacity:0.15}}>—</span>}
-          </div>
-          <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",
-            gap:4,padding:"0 2px",background:"#faf5ff",opacity:past?0.45:1,height:H1}}>
-            {osteos.map(p => {
-              const hasThis = isSlotOpen(p.id,d,time)||!!getBooking(p.id,d,time);
-              const hasNext = isSlotOpen(p.id,d,nextTime)||!!getBooking(p.id,d,nextTime);
-              if (!hasThis && !hasNext) return null;
-              const hasPair = hasThis && hasNext;
-              const clickTime = hasThis ? time : nextTime;
-              const isAtBottom = !hasThis && hasNext;
-              return (
-                <div key={p.id} style={{display:"flex",flexDirection:"column",justifyContent:hasPair?"center":isAtBottom?"flex-end":"flex-start",height:H1}}>
-                  <Btn p={p} time={clickTime} h={hasPair?H1:H2} forceLabel={hasPair?"1h":clickTime} />
-                </div>
-              );
-            })}
-            {!osteos.some(p=>(isSlotOpen(p.id,d,time)||!!getBooking(p.id,d,time))||(isSlotOpen(p.id,d,nextTime)||!!getBooking(p.id,d,nextTime)))&&
-              <span style={{fontSize:9,opacity:0.12}}>—</span>}
-          </div>
-        </div>
-      );
-    } else {
-      // Ligne simple H2 — créneau 30' seul
-      processedTimes.add(time);
-      const rowH = H2;
-      rows.push(
-        <div key={time} style={{display:"flex",height:rowH,borderBottom:`1px solid ${T.border2}`}}>
-          <div style={{width:70,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",
-            flexDirection:"column",alignItems:"flex-end",justifyContent:"center",
-            padding:"0 8px",background:T.surface2}}>
-            <span style={{fontSize:time.endsWith(":00")?11:10,fontWeight:time.endsWith(":00")?700:400,
-              color:time.endsWith(":00")?T.textMid:T.textDim}}>{time}</span>
-            <span style={{fontSize:7,color:"#e05090"}}>30'</span>
-          </div>
-          <div style={{flex:4,borderRight:SEP,display:"flex",alignItems:"center",justifyContent:"center",
-            gap:6,padding:"0 8px",background:T.surface,opacity:past?0.45:1}}>
-            {kines.map(p=><Btn key={p.id} p={p} time={time} h={rowH}/>)}
-            {!kines.some(p=>isSlotOpen(p.id,d,time)||!!getBooking(p.id,d,time))&&
-              <span style={{fontSize:10,opacity:0.15}}>—</span>}
-          </div>
-          <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",
-            gap:4,padding:"0 4px",background:"#faf5ff",opacity:past?0.45:1}}>
-            {osteos.map(p=><Btn key={p.id} p={p} time={time} h={rowH}/>)}
-            {!osteos.some(p=>isSlotOpen(p.id,d,time)||!!getBooking(p.id,d,time))&&
-              <span style={{fontSize:9,opacity:0.12}}>—</span>}
-          </div>
-        </div>
-      );
-    }
-  }
-
   return (
     <div style={css.gridSection}>
-      <div style={{...css.calendarWrap,overflow:"hidden"}}>
+      <div style={{...css.calendarWrap, overflow:"hidden"}}>
         {header}
-        {rows}
+        <div style={{display:"flex"}}>
+          {timeAxis}
+          {/* Colonnes kinés groupées sous un flex */}
+          <div style={{flex:4, display:"flex", borderRight:SEP}}>
+            {kines.map(p => <KineColumn key={p.id} p={p} />)}
+          </div>
+          {/* Colonnes ostéos */}
+          <div style={{flex:1, display:"flex"}}>
+            {osteos.map(p => <OsteoColumn key={p.id} p={p} />)}
+          </div>
+        </div>
       </div>
       <div style={css.practLegend}>
         {practitioners.map(p=>(
@@ -1239,7 +1269,7 @@ function StaffAuth({ staffPwd, setStaffPwd, onAuth, setView }) {
           onKeyDown={e=>e.key==="Enter"&&onAuth()} />
         <button style={{...css.btn,...css.btnStaff,width:"100%",marginTop:8}} onClick={onAuth}>Connexion</button>
         <button style={css.btnLink} onClick={()=>setView("home")}>← Retour</button>
-        <p style={{fontSize:11,opacity:0.4,marginTop:16}}>Mot de passe démo : staff2024</p>
+
       </div>
     </div>
   );
@@ -1277,7 +1307,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
     { key:"recurring", label:"↺ Récurrence",     color:"#ffd166", hint:"Cliquez pour activer/désactiver la répétition hebdomadaire." },
     { key:"split",     label:"✂️ Diviser 2×30'", color:"#fd79a8", hint:"Cliquez sur un créneau 1h pour le couper en deux créneaux de 30 min." },
     { key:"addPlayer", label:"➕ Assigner",       color:"#a29bfe", hint:"Cliquez sur un créneau libre pour y assigner un joueur." },
-    { key:"straps",    label:"🩹 Straps",          color:"#ff7043", hint:"Cliquez sur une cellule pour ajouter/supprimer un créneau strap (orange) sur ce praticien." },
+    { key:"straps",    label:"🩹 Straps",          color:"#ff7043", hint:"Cliquez sur une cellule pour toggler un créneau strap (orange)." },
     { key:"history",   label:"🗂 Historique",     color:"#8b949e", hint:"Consultez tous les soins passés." },
   ];
   const currentMode = subModes.find(m => m.key === dvSubMode);
@@ -1487,7 +1517,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             <span style={css.legendBadge}>■ Réservé → clic = commenter</span>
             <span style={css.legendBadge}>🔒 Assigné staff</span>
             <span style={{...css.legendBadge,color:"#ffd166"}}>⚡ ≥21h cascade</span>
-            <span style={{...css.legendBadge,color:STRAP_COLOR,borderColor:STRAP_COLOR+"44"}}>🩹 Strap</span>
+            <span style={{...css.legendBadge,color:STRAP_COLOR,borderColor:STRAP_COLOR+"55"}}>🩹 Strap</span>
           </div>
         </>
       )}
@@ -1505,9 +1535,11 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   const isPastDay = isPast(date);
   const H30 = 28, HEADER = 48;
 
+  // Vrai si ce créneau est dans le passé (jour passé OU aujourd'hui mais heure dépassée)
   function isSlotPast(time) {
     if (isPastDay) return true;
     if (date > todayStr()) return false;
+    // Même jour — comparer l'heure
     const [h, m] = time.split(":").map(Number);
     const now = new Date();
     return h < now.getHours() || (h === now.getHours() && m <= now.getMinutes());
@@ -1550,28 +1582,27 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   }
 
   async function openWithDuration(duration, practId, time) {
-    if (duration === 60) {
-      onCellClick(practId, date, time, 60);
-      const [h, m] = time.split(":").map(Number);
-      let nextH = h, nextM = m + 30;
-      if (nextM >= 60) { nextH++; nextM = 0; }
-      if (nextH <= 23) {
-        const nextTime = `${String(nextH).padStart(2,"0")}:${String(nextM).padStart(2,"0")}`;
-        onCellClick(practId, date, nextTime, 60);
-      }
-    } else {
-      onCellClick(practId, date, time, 30);
-    }
+    // Un seul appel en base — duration=60 ou 30 stockée dans open_slots
+    onCellClick(practId, date, time, duration);
   }
 
-  // Pour une colonne de kiné, calculer les lignes à afficher
-  // en fusionnant les paires consécutives 30'+30' en un bloc 1h
+  // Toujours H30 — alignement parfait garanti entre toutes les colonnes
+  // Un slot duration=60 colore les deux lignes H30 correspondantes (time et time+30)
   function buildKineRows(k) {
-    const rows = [];
-    for (const time of displayTimes) {
-      rows.push({ time, merged: false, h: H30 });
-    }
-    return rows;
+    return displayTimes.map(time => ({ time, h: H30 }));
+  }
+
+  // Retourne le time du slot 1h qui "couvre" cette ligne (la 2e moitié d'un bloc 1h)
+  function getCoveringSlot(k, time) {
+    // Trouver le créneau précédent dans displayTimes
+    const idx = displayTimes.indexOf(time);
+    if (idx <= 0) return null;
+    const prevTime = displayTimes[idx - 1];
+    const prevOpen = isSlotOpen(k.id, date, prevTime);
+    const prevBooking = getBooking(k.id, date, prevTime);
+    const prevDur = getSlotDuration(k.id, date, prevTime);
+    if ((prevOpen || prevBooking) && prevDur === 60) return prevTime;
+    return null;
   }
 
   // La grille staff : axe temps fixe H30, mais chaque colonne kiné
@@ -1579,29 +1610,61 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   // Pour l'axe temps, on affiche toujours H30 par créneau
   function renderCell(k, time, h) {
     const { booking, slotOpen, rec } = getSlotStatus(k, time);
-    const is1h = h > H30;
     const isTarget = staffTarget?.practId===k.id && staffTarget?.date===date && staffTarget?.time===time;
+    const isHour = time.endsWith(":00");
+
+    // Vérifier si cette ligne :30 est couverte par un slot 1h sur la ligne :00 précédente
+    const coveringTime = getCoveringSlot(k, time);
+    if (coveringTime) {
+      // Cette cellule est la 2e moitié d'un slot 1h — afficher le même fond, sans indicateur
+      const covBooking = getBooking(k.id, date, coveringTime);
+      const covOpen = isSlotOpen(k.id, date, coveringTime);
+      const covRec = isRecurring(k.id, date, coveringTime);
+      const covPast = isSlotPast(coveringTime);
+      let bg = T.surface3+"88";
+      let bl = "3px solid transparent";
+      if (covPast && !covBooking) { bg = "#f0f0f0"; }
+      else if (covBooking) { bg = k.color+"44"; bl = `3px solid ${k.color}`; }
+      else if (covOpen) {
+        bg = covRec ? k.color+"14" : k.color+"0c";
+        bl = covRec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
+      }
+      return (
+        <div key={`${k.id}-${time}`} style={{
+          height: h, flexShrink: 0,
+          borderBottom: `1px solid ${T.border2}`,
+          borderRight: `1px solid ${T.border}`,
+          background: bg, borderLeft: bl,
+          overflow: "hidden",
+          opacity: covPast && !covBooking ? 0.45 : 1,
+        }} />
+      );
+    }
 
     const commonStyle = {
       height: h, flexShrink: 0,
-      borderBottom: time.endsWith(":00") ? `1px solid ${T.border}` : `1px solid ${T.border2}`,
+      borderBottom: isHour ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
       borderRight: `1px solid ${T.border}`,
       overflow: "hidden",
       transition: "background 0.1s",
-      background: time.endsWith(":30") ? T.surface3+"88" : T.surface,
     };
 
-    const isHour = time.endsWith(":00");
     const slotPast = isSlotPast(time);
+
     let bg = isHour ? T.surface : T.surface3+"88";
     let bl = "3px solid transparent";
     let indicator = null;
 
+    // Créneau passé sans réservation → grisé non cliquable
     if (slotPast && !booking) {
       return (
         <div key={`${k.id}-${time}`} style={{
-          ...commonStyle, background:"#f0f0f0", borderLeft:"3px solid transparent",
-          cursor:"default", opacity:0.45, display:"flex", alignItems:"center", justifyContent:"center",
+          ...commonStyle,
+          background: "#f0f0f0",
+          borderLeft: "3px solid transparent",
+          cursor: "default",
+          opacity: 0.45,
+          display:"flex", alignItems:"center", justifyContent:"center",
         }} />
       );
     }
@@ -1611,10 +1674,11 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       indicator = (
         <div style={{width:"100%", overflow:"hidden", padding:"0 4px"}}>
           <div style={{display:"flex", alignItems:"center", gap:2}}>
-            <span style={{fontSize:10, fontWeight:700, color:k.color, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1}}>
+            <span style={{fontSize:10, fontWeight:800, color:k.color, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1,
+              textShadow:"0 0 0 transparent", filter:"brightness(0.6)"}}>
               {booking.player}
             </span>
-            {booking.locked && <span style={{fontSize:8, opacity:0.5, flexShrink:0}}>🔒</span>}
+            {booking.locked && <span style={{fontSize:8, opacity:0.7, flexShrink:0}}>🔒</span>}
             {!isPastDay && <button style={css.deleteBtn} onClick={e=>{e.stopPropagation();unbook(k.id,date,time);}}>✕</button>}
           </div>
           {booking.note && (
@@ -1642,7 +1706,6 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
 
     if (isTarget) { bg="#fffbe8"; bl=`3px solid ${T.goldBright}`; }
 
-    const hasStrap = strapSlots && strapSlots[`${date}|${time}`];
     return (
       <div key={`${k.id}-${time}`} style={{
         ...commonStyle,
@@ -1652,9 +1715,9 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         position:"relative",
       }}
         onClick={() => !isPastDay && handleCellClick(k.id, time)}
-        title={booking ? `${booking.player}` : slotOpen ? "Ouvert" : "Fermé — cliquer pour ouvrir"}>
+        title={booking ? `${booking.player}` : slotOpen ? `Ouvert ${getSlotDuration(k.id,date,time)===60?"1h":"30'"}` : "Fermé — cliquer pour ouvrir"}>
         {indicator}
-        {hasStrap && (
+        {strapSlots && strapSlots[`${date}|${time}`] && (
           <div style={{position:"absolute",top:1,right:1,background:STRAP_COLOR,color:"#fff",
             borderRadius:4,fontSize:8,fontWeight:800,padding:"1px 4px",lineHeight:1.4,pointerEvents:"none"}}>🩹</div>
         )}
@@ -1692,7 +1755,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
             <div key={`axis-${time}`} style={{
               height: H30, flexShrink:0,
               background: time.endsWith(":00") ? T.surface2 : T.surface3,
-              borderBottom: time.endsWith(":00") ? `1px solid ${T.border}` : `1px solid ${T.border2}`,
+              borderBottom: time.endsWith(":00") ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
               borderRight:`1px solid ${T.border}`,
               display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 8px",
             }}>
@@ -1806,13 +1869,14 @@ function BookingActionModal({ modal, kines, pract, onNote, onMove, onDelete, onC
 const SOIN_ITEMS_SIMPLE = ["Récup", "Étirements", "Contusion", "Isocinétique", "Ondes de choc"];
 const SOIN_ITEMS_SIDE   = ["Genou", "Cheville", "Tendon d'Achille", "Tendon rotulien", "Mollet", "Quadriceps", "Ischio-jambiers"];
 
+// Sérialiser/désérialiser la note (JSON enrichi + texte libre)
 function parseNote(raw) {
   if (!raw) return { items: {}, text: "" };
   try {
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === "object" && "items" in parsed) return parsed;
   } catch {}
-  return { items: {}, text: raw };
+  return { items: {}, text: raw }; // ancienne note texte brut
 }
 function serializeNote(items, text) {
   const hasItems = Object.keys(items).some(k => items[k]);
@@ -1822,7 +1886,9 @@ function serializeNote(items, text) {
 function noteToDisplay(raw) {
   const { items, text } = parseNote(raw);
   const parts = [];
-  for (const key of SOIN_ITEMS_SIMPLE) { if (items[key]) parts.push(key); }
+  for (const key of SOIN_ITEMS_SIMPLE) {
+    if (items[key]) parts.push(key);
+  }
   for (const key of SOIN_ITEMS_SIDE) {
     if (items[key+"_G"]) parts.push(key+" G");
     if (items[key+"_D"]) parts.push(key+" D");
@@ -1836,12 +1902,17 @@ function NoteModal({ note, player, date, time, pract, onSave, onClose }) {
   const parsed = parseNote(note);
   const [items, setItems] = useState(parsed.items || {});
   const [text, setText]   = useState(parsed.text || "");
-  function toggleItem(key) { setItems(prev => ({ ...prev, [key]: !prev[key] })); }
+
+  function toggleItem(key) {
+    setItems(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
   const hasAny = Object.values(items).some(Boolean) || text.trim();
 
   return (
     <div style={css.modalOverlay} onClick={onClose}>
       <div style={{...css.modalCard, maxWidth:480, maxHeight:"90vh", overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        {/* Header */}
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
           <div style={{...css.practAvatar,background:pract.color,width:32,height:32,fontSize:12,flexShrink:0}}>{pract.initials}</div>
           <div>
@@ -1849,6 +1920,8 @@ function NoteModal({ note, player, date, time, pract, onSave, onClose }) {
             <div style={{fontSize:12,color:T.textDim}}>{fmtLong(date)} · {time} · {pract.name}</div>
           </div>
         </div>
+
+        {/* Items simples */}
         <div style={{marginBottom:14}}>
           <div style={{...css.label, marginBottom:8}}>Type de soin</div>
           <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
@@ -1857,11 +1930,14 @@ function NoteModal({ note, player, date, time, pract, onSave, onClose }) {
                 padding:"6px 14px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer",
                 border:`2px solid ${items[item] ? T.navy : T.border}`,
                 background: items[item] ? T.navy : T.surface2,
-                color: items[item] ? "#fff" : T.textMid, transition:"all 0.15s",
+                color: items[item] ? "#fff" : T.textMid,
+                transition:"all 0.15s",
               }}>{items[item] ? "✓ " : ""}{item}</button>
             ))}
           </div>
         </div>
+
+        {/* Items avec côté G/D */}
         <div style={{marginBottom:14}}>
           <div style={{...css.label, marginBottom:8}}>Zone anatomique <span style={{fontWeight:400,textTransform:"none",letterSpacing:0,color:T.textDim}}>(choisir le côté)</span></div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
@@ -1876,7 +1952,8 @@ function NoteModal({ note, player, date, time, pract, onSave, onClose }) {
                       width:40, height:32, borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer",
                       border:`2px solid ${active ? (side==="G"?"#1565c0":"#c62828") : T.border}`,
                       background: active ? (side==="G"?"#1565c022":"#c6282822") : T.surface2,
-                      color: active ? (side==="G"?"#1565c0":"#c62828") : T.textDim, transition:"all 0.15s",
+                      color: active ? (side==="G"?"#1565c0":"#c62828") : T.textDim,
+                      transition:"all 0.15s",
                     }}>{side}</button>
                   );
                 })}
@@ -1884,20 +1961,35 @@ function NoteModal({ note, player, date, time, pract, onSave, onClose }) {
             ))}
           </div>
         </div>
+
+        {/* Commentaire libre */}
         <div style={{marginBottom:14}}>
           <div style={{...css.label, marginBottom:6}}>Commentaire libre</div>
-          <textarea style={{width:"100%", background:T.surface2, border:`1px solid ${T.border}`,
+          <textarea style={{
+            width:"100%", background:T.surface2, border:`1px solid ${T.border}`,
             borderRadius:10, padding:"10px 12px", color:T.text, fontSize:13,
-            resize:"vertical", minHeight:64, fontFamily:"inherit", boxSizing:"border-box", outline:"none"}}
-            placeholder="Remarques complémentaires..." value={text} onChange={e=>setText(e.target.value)} />
+            resize:"vertical", minHeight:64, fontFamily:"inherit", boxSizing:"border-box", outline:"none",
+          }}
+            placeholder="Remarques complémentaires..."
+            value={text} onChange={e=>setText(e.target.value)}
+          />
         </div>
+
         <div style={{display:"flex",gap:8}}>
-          <button style={{...css.btn,...css.btnConfirm,flex:1}} onClick={()=>onSave(serializeNote(items,text))}>Enregistrer ✓</button>
+          <button style={{...css.btn,...css.btnConfirm,flex:1}}
+            onClick={()=>onSave(serializeNote(items,text))}>
+            Enregistrer ✓
+          </button>
           {hasAny && (
             <button style={{...css.btn,background:"#fff0f0",border:`1px solid ${T.red}`,color:T.red,fontSize:13,padding:"10px 14px"}}
-              onClick={()=>{ setItems({}); setText(""); onSave(""); }}>Effacer</button>
+              onClick={()=>{ setItems({}); setText(""); onSave(""); }}>
+              Effacer
+            </button>
           )}
-          <button style={{...css.btn,background:T.surface2,color:T.textDim,fontSize:13,padding:"10px 14px"}} onClick={onClose}>Annuler</button>
+          <button style={{...css.btn,background:T.surface2,color:T.textDim,fontSize:13,padding:"10px 14px"}}
+            onClick={onClose}>
+            Annuler
+          </button>
         </div>
       </div>
     </div>
@@ -1909,24 +2001,36 @@ function StatsModal({ onClose, bookings, practitioners }) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo,   setDateTo]   = useState("");
   const [practFilter, setPractFilter] = useState("");
+
   const allBookings = Object.entries(bookings).map(([k,v]) => {
     const [pId, date, time] = k.split("|");
     return { pId, date, time, ...v };
   });
+
   const filtered = allBookings.filter(b => {
     if (practFilter && b.pId !== practFilter) return false;
     if (dateFrom && b.date < dateFrom) return false;
     if (dateTo   && b.date > dateTo)   return false;
     return true;
   });
+
+  // Compter les items
   const counts = {};
-  const allKeys = [...SOIN_ITEMS_SIMPLE, ...SOIN_ITEMS_SIDE.flatMap(s => [s+"_G", s+"_D"])];
+  const allKeys = [
+    ...SOIN_ITEMS_SIMPLE,
+    ...SOIN_ITEMS_SIDE.flatMap(s => [s+"_G", s+"_D"]),
+  ];
   for (const k of allKeys) counts[k] = 0;
+
   for (const b of filtered) {
     const { items } = parseNote(b.note);
-    for (const k of allKeys) { if (items[k]) counts[k]++; }
+    for (const k of allKeys) {
+      if (items[k]) counts[k]++;
+    }
   }
+
   const total = filtered.length;
+
   return (
     <div style={css.modalOverlay} onClick={onClose}>
       <div style={{...css.modalCard, maxWidth:520, maxHeight:"92vh", overflowY:"auto", padding:20}} onClick={e=>e.stopPropagation()}>
@@ -1934,6 +2038,8 @@ function StatsModal({ onClose, bookings, practitioners }) {
           <h3 style={{margin:0,fontSize:17,color:T.navy,fontWeight:800}}>📊 Statistiques des soins</h3>
           <button style={{...css.backBtn,background:T.surface2,color:T.textDim,border:`1px solid ${T.border}`}} onClick={onClose}>✕</button>
         </div>
+
+        {/* Filtres */}
         <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
           <div style={{flex:1,minWidth:120}}>
             <div style={{...css.label,marginBottom:4}}>Du</div>
@@ -1951,28 +2057,36 @@ function StatsModal({ onClose, bookings, practitioners }) {
             </select>
           </div>
         </div>
+
         <div style={{background:T.surface2,borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:13,color:T.navy,fontWeight:600}}>
           {total} soin{total>1?"s":""} sur la période
         </div>
+
+        {/* Soins simples */}
         <div style={{marginBottom:14}}>
           <div style={{...css.label,marginBottom:8}}>Soins généraux</div>
           {SOIN_ITEMS_SIMPLE.map(item => {
-            const n = counts[item]||0, pct = total ? Math.round(n/total*100) : 0;
+            const n = counts[item] || 0;
+            const pct = total ? Math.round(n/total*100) : 0;
             return (
               <div key={item} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
                 <span style={{width:160,fontSize:13,color:T.textMid,fontWeight:600}}>{item}</span>
                 <div style={{flex:1,height:14,background:T.surface3,borderRadius:7,overflow:"hidden"}}>
-                  <div style={{width:`${pct}%`,height:"100%",background:T.navy,borderRadius:7}} />
+                  <div style={{width:`${pct}%`,height:"100%",background:T.navy,borderRadius:7,transition:"width 0.4s"}} />
                 </div>
                 <span style={{fontSize:12,color:T.textDim,minWidth:40,textAlign:"right"}}>{n} ({pct}%)</span>
               </div>
             );
           })}
         </div>
+
+        {/* Zones anatomiques G/D */}
         <div>
           <div style={{...css.label,marginBottom:8}}>Zones anatomiques</div>
           {SOIN_ITEMS_SIDE.map(item => {
-            const nG=counts[item+"_G"]||0, nD=counts[item+"_D"]||0, maxN=Math.max(nG,nD,1);
+            const nG = counts[item+"_G"] || 0;
+            const nD = counts[item+"_D"] || 0;
+            const maxN = Math.max(nG, nD, 1);
             return (
               <div key={item} style={{marginBottom:8}}>
                 <div style={{fontSize:13,fontWeight:700,color:T.textMid,marginBottom:4}}>{item}</div>
