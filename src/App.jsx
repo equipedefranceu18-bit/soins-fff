@@ -146,7 +146,7 @@ export default function App() {
 
   // Player state
   const [playerName,    setPlayerName]    = useState("");
-  const [playerMode,    setPlayerMode]    = useState("bySlot");
+  const [playerMode,    setPlayerMode]    = useState("byPract");
   const [selectedPract, setSelectedPract] = useState(null);
   const [selectedDate,  setSelectedDate]  = useState(null);
   const [selectedTime,  setSelectedTime]  = useState(null);
@@ -570,14 +570,12 @@ function PlayerView({
   }
   function handleSlotClick(pId, date, time) {
     if (!isAvailable(pId, date, time)) return;
-    if (playerMode === "byPract") {
-      if (selectedPract !== pId) return;
-      if (selectedDate===date && selectedTime===time) { setSelectedDate(null); setSelectedTime(null); }
-      else { setSelectedDate(date); setSelectedTime(time); }
+    if (!playerName.trim()) return; // nom requis
+    // Mode créneau uniquement — sélectionne directement praticien + date + heure
+    if (selectedDate===date && selectedTime===time && selectedPract===pId) {
+      setSelectedDate(null); setSelectedTime(null); setSelectedPract(null);
     } else {
-      if (selectedDate===date && selectedTime===time && selectedPract===pId) {
-        setSelectedDate(null); setSelectedTime(null); setSelectedPract(null);
-      } else { setSelectedDate(date); setSelectedTime(time); setSelectedPract(pId); }
+      setSelectedDate(date); setSelectedTime(time); setSelectedPract(pId);
     }
   }
 
@@ -968,102 +966,56 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
               );
             }
 
-            const splitPracts   = practitioners.filter(p =>  isSplit(p.id, d, baseTime));
+            const splitPracts = practitioners.filter(p => isSplit(p.id, d, baseTime));
             const unsplitPracts = practitioners.filter(p => !isSplit(p.id, d, baseTime));
-
-            const avail1h      = unsplitPracts.filter(p => isAvailable(p.id, d, baseTime));
-            const avail1hKines = avail1h.filter(p => p.role === "kiné");
-            const avail1hOsteo = avail1h.filter(p => p.role === "ostéo");
-            const avail00      = splitPracts.filter(p => isAvailable(p.id, d, baseTime));
-            const avail30      = splitPracts.filter(p => isAvailable(p.id, d, halfTime));
-            const avail00K     = avail00.filter(p => p.role === "kiné");
-            const avail00O     = avail00.filter(p => p.role === "ostéo");
-            const avail30K     = avail30.filter(p => p.role === "kiné");
-            const avail30O     = avail30.filter(p => p.role === "ostéo");
-            const hasAny       = avail1h.length > 0 || avail00.length > 0 || avail30.length > 0;
+            const avail1h  = unsplitPracts.filter(p => isAvailable(p.id, d, baseTime));
+            const avail00  = splitPracts.filter(p => isAvailable(p.id, d, baseTime));
+            const avail30  = splitPracts.filter(p => isAvailable(p.id, d, halfTime));
+            const avail1hK = avail1h.filter(p => p.role==="kiné");
+            const avail1hO = avail1h.filter(p => p.role==="ostéo");
+            const avail00K = avail00.filter(p => p.role==="kiné");
+            const avail00O = avail00.filter(p => p.role==="ostéo");
+            const avail30K = avail30.filter(p => p.role==="kiné");
+            const avail30O = avail30.filter(p => p.role==="ostéo");
 
             return (
-              <div key={baseTime}>
-                <div style={{display:"flex", minHeight:H*2, borderBottom:`1px solid ${T.border2}`}}>
-                  {/* Axe temps */}
-                  <div style={{
-                    width:70, flexShrink:0, borderRight:`1px solid ${T.border}`,
-                    display:"flex", flexDirection:"column", alignItems:"flex-end", justifyContent:"center",
-                    padding:"0 8px", background:T.surface2,
-                  }}>
-                    <span style={{fontSize:11, fontWeight:700, color:T.textMid}}>{baseTime}</span>
-                    <span style={{fontSize:8, color:"#e05090"}}>30'+30'</span>
+              <div key={baseTime} style={{borderBottom:`1px solid ${T.border2}`}}>
+                {/* Ligne :00 */}
+                <div style={{display:"flex", height:H, borderBottom:`1px dashed ${T.border2}`}}>
+                  <div style={{width:70,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",alignItems:"flex-end",justifyContent:"center",padding:"0 8px",background:T.surface2}}>
+                    <span style={{fontSize:10,fontWeight:700,color:T.textMid}}>{baseTime}</span>
+                    <span style={{fontSize:7,color:"#e05090"}}>30'</span>
                   </div>
-
-                  {/* Colonne Kinés — divisée en sous-colonnes si nécessaire */}
-                  <div style={{flex:4, display:"flex", borderRight:`2px solid ${T.navy}33`}}>
-                    {/* Sous-colonne : kinés 1h (span vertical) */}
-                    {avail1hKines.length > 0 && (
-                      <div style={{
-                        display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-                        gap:4, padding:"4px 3px", borderRight:`1px dashed ${T.border2}`,
-                        background:T.surface, opacity:past?0.5:1, minWidth:44,
-                      }}>
-                        {avail1hKines.map(p => (
-                          <PractBtn key={`1h-${p.id}`} p={p} d={d} time={baseTime} h={H*2-8} />
-                        ))}
-                        <span style={{fontSize:7, color:T.textDim, fontWeight:600}}>1h</span>
-                      </div>
-                    )}
-                    {/* Sous-colonne : kinés 30' */}
-                    {(avail00K.length > 0 || avail30K.length > 0) && (
-                      <div style={{flex:1, display:"flex", flexDirection:"column", background:T.surface, opacity:past?0.5:1}}>
-                        <div style={{flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:3, padding:"2px 3px", borderBottom:`1px dashed ${T.border2}`}}>
-                          {avail00K.map(p => <PractBtn key={p.id} p={p} d={d} time={baseTime} h={H-5} />)}
-                          {avail00K.length===0 && <span style={{fontSize:8,opacity:0.1}}>—</span>}
-                        </div>
-                        <div style={{flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:3, padding:"2px 3px"}}>
-                          {avail30K.map(p => <PractBtn key={p.id} p={p} d={d} time={halfTime} h={H-5} />)}
-                          {avail30K.length===0 && <span style={{fontSize:8,opacity:0.1}}>—</span>}
-                        </div>
-                      </div>
-                    )}
-                    {avail1hKines.length===0 && avail00K.length===0 && avail30K.length===0 && (
-                      <div style={{flex:1, display:"flex", alignItems:"center", justifyContent:"center"}}>
-                        <span style={{fontSize:10,opacity:0.12}}>—</span>
-                      </div>
-                    )}
+                  <div style={{flex:4,display:"flex",alignItems:"center",justifyContent:"center",gap:3,padding:"2px 4px",background:T.surface,borderRight:`2px solid ${T.navy}22`,opacity:past?0.5:1}}>
+                    {[...avail1hK.map(p=><PractBtn key={"1h-"+p.id} p={p} d={d} time={baseTime} h={H-5}/>),
+                      ...avail00K.map(p=><PractBtn key={p.id} p={p} d={d} time={baseTime} h={H-5}/>)]}
+                    {avail1hK.length===0&&avail00K.length===0&&<span style={{fontSize:9,opacity:0.12}}>—</span>}
                   </div>
-
-                  {/* Colonne Ostéo — alignée verticalement */}
-                  <div style={{flex:1, display:"flex", flexDirection:"column", background:"#faf5ff", opacity:past?0.5:1}}>
-                    {avail1hOsteo.length > 0 ? (
-                      <div style={{flex:1, display:"flex", alignItems:"center", justifyContent:"center"}}>
-                        {avail1hOsteo.map(p => <PractBtn key={p.id} p={p} d={d} time={baseTime} h={H*2-8} />)}
-                      </div>
-                    ) : (
-                      <>
-                        <div style={{flex:1, display:"flex", alignItems:"center", justifyContent:"center", borderBottom:`1px dashed ${T.border2}`}}>
-                          {avail00O.map(p => <PractBtn key={p.id} p={p} d={d} time={baseTime} h={H-5} />)}
-                          {avail00O.length===0 && <span style={{fontSize:8,opacity:0.1}}>—</span>}
-                        </div>
-                        <div style={{flex:1, display:"flex", alignItems:"center", justifyContent:"center"}}>
-                          {avail30O.map(p => <PractBtn key={p.id} p={p} d={d} time={halfTime} h={H-5} />)}
-                          {avail30O.length===0 && <span style={{fontSize:8,opacity:0.1}}>—</span>}
-                        </div>
-                      </>
-                    )}
+                  <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:3,padding:"2px 2px",background:"#faf5ff",opacity:past?0.5:1}}>
+                    {[...avail1hO.map(p=><PractBtn key={"1h-"+p.id} p={p} d={d} time={baseTime} h={H-5}/>),
+                      ...avail00O.map(p=><PractBtn key={p.id} p={p} d={d} time={baseTime} h={H-5}/>)]}
+                    {avail1hO.length===0&&avail00O.length===0&&<span style={{fontSize:9,opacity:0.12}}>—</span>}
+                  </div>
+                </div>
+                {/* Ligne :30 */}
+                <div style={{display:"flex", height:H}}>
+                  <div style={{width:70,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",alignItems:"flex-end",justifyContent:"center",padding:"0 8px",background:T.surface2}}>
+                    <span style={{fontSize:10,color:"#e05090"}}>{halfTime}</span>
+                    <span style={{fontSize:7,color:"#e05090"}}>30'</span>
+                  </div>
+                  <div style={{flex:4,display:"flex",alignItems:"center",justifyContent:"center",gap:3,padding:"2px 4px",background:T.surface,borderRight:`2px solid ${T.navy}22`,opacity:past?0.5:1}}>
+                    {[...avail1hK.map(p=><PractBtn key={"1h-"+p.id} p={p} d={d} time={baseTime} h={H-5}/>),
+                      ...avail30K.map(p=><PractBtn key={p.id} p={p} d={d} time={halfTime} h={H-5}/>)]}
+                    {avail1hK.length===0&&avail30K.length===0&&<span style={{fontSize:9,opacity:0.12}}>—</span>}
+                  </div>
+                  <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:3,padding:"2px 2px",background:"#faf5ff",opacity:past?0.5:1}}>
+                    {[...avail1hO.map(p=><PractBtn key={"1h-"+p.id} p={p} d={d} time={baseTime} h={H-5}/>),
+                      ...avail30O.map(p=><PractBtn key={p.id} p={p} d={d} time={halfTime} h={H-5}/>)]}
+                    {avail1hO.length===0&&avail30O.length===0&&<span style={{fontSize:9,opacity:0.12}}>—</span>}
                   </div>
                 </div>
               </div>
             );
-          })}
-        </div>
-        <div style={css.practLegend}>
-          {practitioners.map(p => (
-            <div key={p.id} style={css.legendItem}>
-              <div style={{...css.practDot,background:p.color}} />{p.name}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   // Multi-day fallback (not used in player view but kept for safety)
   return (
@@ -1143,7 +1095,7 @@ function DayNav({ days, dayOffset, setDayOffset }) {
   const start = days[0], end = days[6];
   return (
     <div style={css.weekNav}>
-      <button style={css.weekBtn} onClick={()=>setDayOffset(o=>Math.max(0,o-7))} disabled={dayOffset===0}
+      <button style={css.weekBtn} onClick={()=>setDayOffset(o=>o-7)}
         title={dayOffset===0?"Aujourd'hui est déjà à gauche":""}>
         ‹
       </button>
@@ -1248,7 +1200,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
 
       {/* Day selector */}
       <div style={css.daySelectorRow}>
-        <button style={css.weekBtn} onClick={()=>setDayOffset(o=>Math.max(0,o-7))} disabled={dayOffset===0}>‹</button>
+        <button style={css.weekBtn} onClick={()=>setDayOffset(o=>o-7)}>‹</button>
         {days.map(d => {
           const date = fmtDate(d);
           const isToday = date === todayStr();
