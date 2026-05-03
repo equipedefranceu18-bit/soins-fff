@@ -177,7 +177,10 @@ export default function App() {
   function splitKey(practId, date, baseTime) { return `${practId}|${date}|${baseTime}`; }
 
   function isSplit(practId, date, baseTime) {
-    return !!splitSlots[splitKey(practId, date, baseTime)];
+    if (splitSlots[splitKey(practId, date, baseTime)]) return true;
+    // Also consider split if the :30 half-slot is directly open or booked
+    const half = `${baseTime.split(":")[0].padStart(2,"0")}:30`;
+    return isSlotOpen(practId, date, half) || !!bookings[slotKey(practId, date, half)];
   }
 
   async function toggleSplit(practId, date, baseTime) {
@@ -192,11 +195,17 @@ export default function App() {
 
   // Build the time slots for a given pract+date context
   function getSlotsForContext(practId, date) {
-    const splits = {};
+    const result = [];
     for (const base of BASE_SLOTS) {
-      if (splitSlots[splitKey(practId, date, base)]) splits[base] = true;
+      const half = `${base.split(":")[0].padStart(2,"0")}:30`;
+      const hasSplit = splitSlots[splitKey(practId, date, base)];
+      const baseOpen = isSlotOpen(practId, date, base) || !!getBooking(practId, date, base);
+      const halfOpen = isSlotOpen(practId, date, half) || !!getBooking(practId, date, half);
+      
+      if (baseOpen) result.push(base);
+      if (hasSplit || halfOpen) result.push(half);
     }
-    return buildTimeSlots(splits);
+    return result;
   }
 
   // Is a given time a :30 half-slot (added by splitting)?
@@ -1361,6 +1370,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   const isPastDay = isPast(date);
   const H30 = 28, HEADER = 48;
   const [durationPicker, setDurationPicker] = useState(null); // {practId, time}
+  const [defaultDuration, setDefaultDuration] = useState(60); // 30 ou 60
 
   // Générer tous les créneaux de 30 minutes de 9h00 à 23h30
   const allTimes = [];
@@ -1387,36 +1397,27 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     if (isPastDay) return;
     const { slotOpen, booking } = getSlotStatus(kines.find(k=>k.id===practId), time);
     if (booking) {
-      // Réservation → ouvrir le modal
       onCellClick(practId, date, time);
     } else if (slotOpen) {
-      // Ouvert → fermer directement
       onCellClick(practId, date, time);
     } else {
-      // Fermé → demander la durée
-      setDurationPicker({ practId, time });
+      // Ouvrir directement avec la durée sélectionnée via les onglets
+      openWithDuration(defaultDuration, practId, time);
     }
   }
 
-  async function openWithDuration(duration) {
-    if (!durationPicker) return;
-    const { practId, time } = durationPicker;
-    const h = parseInt(time.split(":")[0]);
-    const m = time.endsWith(":30") ? 30 : 0;
-
+  async function openWithDuration(duration, practId, time) {
+    onCellClick(practId, date, time); // ouvre ce créneau
     if (duration === 60) {
-      // Ouvrir ce créneau ET le suivant de 30'
-      onCellClick(practId, date, time); // ouvre time
-      // Calculer le créneau suivant
+      const h = parseInt(time.split(":")[0]);
+      const m = time.endsWith(":30") ? 30 : 0;
       let nextH = h, nextM = m + 30;
       if (nextM >= 60) { nextH++; nextM = 0; }
-      const nextTime = `${String(nextH).padStart(2,"0")}:${String(nextM).padStart(2,"0")}`;
-      if (nextH <= 23) onCellClick(practId, date, nextTime); // ouvre nextTime
-    } else {
-      // Ouvrir uniquement ce créneau de 30'
-      onCellClick(practId, date, time);
+      if (nextH <= 23) {
+        const nextTime = `${String(nextH).padStart(2,"0")}:${String(nextM).padStart(2,"0")}`;
+        onCellClick(practId, date, nextTime);
+      }
     }
-    setDurationPicker(null);
   }
 
   function renderCell(k, time) {
@@ -1484,48 +1485,25 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
 
   return (
     <div style={{...css.calendarWrap, margin:"0 20px", overflowX:"auto", position:"relative"}}>
-      {/* Popup choix durée */}
-      {durationPicker && (
-        <div style={{
-          position:"fixed", inset:0, background:"rgba(0,0,0,0.5)",
-          display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000,
-        }} onClick={()=>setDurationPicker(null)}>
-          <div style={{
-            background:"#fff", borderRadius:16, padding:24, minWidth:260,
-            boxShadow:"0 8px 32px rgba(0,0,0,0.3)",
-          }} onClick={e=>e.stopPropagation()}>
-            <div style={{fontWeight:800, fontSize:16, marginBottom:6, color:T.navy}}>
-              Ouvrir le créneau {durationPicker.time}
-            </div>
-            <div style={{fontSize:13, color:T.textDim, marginBottom:20}}>
-              Quelle durée souhaitez-vous ouvrir ?
-            </div>
-            <div style={{display:"flex", gap:12}}>
-              <button style={{
-                flex:1, padding:"14px 0", background:"#f0f4ff",
-                border:`2px solid ${T.navy}`, borderRadius:12,
-                fontWeight:800, fontSize:15, color:T.navy, cursor:"pointer",
-              }} onClick={()=>openWithDuration(30)}>
-                30 min
-              </button>
-              <button style={{
-                flex:1, padding:"14px 0", background:T.navy,
-                border:`2px solid ${T.navy}`, borderRadius:12,
-                fontWeight:800, fontSize:15, color:"#fff", cursor:"pointer",
-              }} onClick={()=>openWithDuration(60)}>
-                1 heure
-              </button>
-            </div>
-            <button style={{
-              width:"100%", marginTop:12, padding:"10px 0",
-              background:"transparent", border:"none",
-              color:T.textDim, cursor:"pointer", fontSize:13,
-            }} onClick={()=>setDurationPicker(null)}>
-              Annuler
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Onglets durée */}
+      <div style={{display:"flex", gap:8, padding:"10px 0 8px", justifyContent:"center"}}>
+        <button style={{
+          padding:"6px 20px", borderRadius:20, border:`2px solid ${T.navy}`,
+          background: defaultDuration===60 ? T.navy : "transparent",
+          color: defaultDuration===60 ? "#fff" : T.navy,
+          fontWeight:700, fontSize:13, cursor:"pointer",
+        }} onClick={()=>setDefaultDuration(60)}>
+          ⏱ 1 heure
+        </button>
+        <button style={{
+          padding:"6px 20px", borderRadius:20, border:`2px solid #e05090`,
+          background: defaultDuration===30 ? "#e05090" : "transparent",
+          color: defaultDuration===30 ? "#fff" : "#e05090",
+          fontWeight:700, fontSize:13, cursor:"pointer",
+        }} onClick={()=>setDefaultDuration(30)}>
+          ⚡ 30 min
+        </button>
+      </div>
 
       <div style={{display:"flex", minWidth:500}}>
         {/* Axe temps — créneaux de 30' */}
