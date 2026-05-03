@@ -946,23 +946,51 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
       );
     }
 
-    // Split rows
+    // Split rows — 1h practs shown as full H*2 buttons via absolute positioning
     return (
-      <div key={baseTime} style={{borderBottom:`1px solid ${T.border2}`}}>
+      <div key={baseTime} style={{borderBottom:`1px solid ${T.border2}`, position:"relative"}}>
+        {/* Boutons 1h kinés positionnés en absolu sur toute la hauteur */}
+        {availK1h.length > 0 && (
+          <div style={{
+            position:"absolute", left:70, top:0, bottom:0,
+            display:"flex", alignItems:"center", justifyContent:"center",
+            gap:4, padding:"0 6px", zIndex:3, pointerEvents:"none",
+            width: `calc((100% - 70px) * 4/5 - 12px)`,
+          }}>
+            {availK1h.map(p => (
+              <div key={"1-"+p.id} style={{pointerEvents:"auto"}}>
+                <PractBtn p={p} time={baseTime} h={H*2} />
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Boutons 1h ostéo positionnés en absolu */}
+        {availO1h.length > 0 && (
+          <div style={{
+            position:"absolute", right:0, top:0, bottom:0,
+            display:"flex", alignItems:"center", justifyContent:"center",
+            gap:4, padding:"0 4px", zIndex:3, pointerEvents:"none",
+            width: `calc((100% - 70px) / 5)`,
+          }}>
+            {availO1h.map(p => (
+              <div key={"1-"+p.id} style={{pointerEvents:"auto"}}>
+                <PractBtn p={p} time={baseTime} h={H*2} />
+              </div>
+            ))}
+          </div>
+        )}
         {/* :00 row */}
         <div style={{display:"flex", height:H, borderBottom:`1px dashed ${T.border2}`}}>
           <div style={{width:70,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",alignItems:"flex-end",justifyContent:"center",padding:"0 8px",background:T.surface2}}>
             <span style={{fontSize:10,fontWeight:700,color:T.textMid}}>{baseTime}</span>
             <span style={{fontSize:7,color:"#e05090"}}>30'</span>
           </div>
-          <div style={{...cellStyle(4), borderRight:`2px solid ${T.navy}22`}}>
-            {[...availK1h.map(p=><PractBtn key={"1-"+p.id} p={p} time={baseTime} h={H} />),
-              ...availK00.map(p=><PractBtn key={p.id} p={p} time={baseTime} h={H} />)]}
+          <div style={{...cellStyle(4), borderRight:`2px solid ${T.navy}22`, justifyContent: availK1h.length>0 ? "flex-end" : "center"}}>
+            {availK00.map(p=><PractBtn key={p.id} p={p} time={baseTime} h={H} />)}
             {availK1h.length===0&&availK00.length===0&&<span style={{fontSize:9,opacity:0.12}}>—</span>}
           </div>
-          <div style={{...cellStyle(1), background:"#faf5ff"}}>
-            {[...availO1h.map(p=><PractBtn key={"1-"+p.id} p={p} time={baseTime} h={H} />),
-              ...availO00.map(p=><PractBtn key={p.id} p={p} time={baseTime} h={H} />)]}
+          <div style={{...cellStyle(1), background:"#faf5ff", justifyContent: availO1h.length>0 ? "flex-end" : "center"}}>
+            {availO00.map(p=><PractBtn key={p.id} p={p} time={baseTime} h={H} />)}
             {availO1h.length===0&&availO00.length===0&&<span style={{fontSize:9,opacity:0.12}}>—</span>}
           </div>
         </div>
@@ -972,14 +1000,12 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             <span style={{fontSize:10,color:"#e05090"}}>{halfTime}</span>
             <span style={{fontSize:7,color:"#e05090"}}>30'</span>
           </div>
-          <div style={{...cellStyle(4), borderRight:`2px solid ${T.navy}22`}}>
-            {[...availK1h.map(p=><PractBtn key={"1-"+p.id} p={p} time={baseTime} h={H} />),
-              ...availK30.map(p=><PractBtn key={p.id} p={p} time={halfTime} h={H} />)]}
+          <div style={{...cellStyle(4), borderRight:`2px solid ${T.navy}22`, justifyContent: availK1h.length>0 ? "flex-end" : "center"}}>
+            {availK30.map(p=><PractBtn key={p.id} p={p} time={halfTime} h={H} />)}
             {availK1h.length===0&&availK30.length===0&&<span style={{fontSize:9,opacity:0.12}}>—</span>}
           </div>
-          <div style={{...cellStyle(1), background:"#faf5ff"}}>
-            {[...availO1h.map(p=><PractBtn key={"1-"+p.id} p={p} time={baseTime} h={H} />),
-              ...availO30.map(p=><PractBtn key={p.id} p={p} time={halfTime} h={H} />)]}
+          <div style={{...cellStyle(1), background:"#faf5ff", justifyContent: availO1h.length>0 ? "flex-end" : "center"}}>
+            {availO30.map(p=><PractBtn key={p.id} p={p} time={halfTime} h={H} />)}
             {availO1h.length===0&&availO30.length===0&&<span style={{fontSize:9,opacity:0.12}}>—</span>}
           </div>
         </div>
