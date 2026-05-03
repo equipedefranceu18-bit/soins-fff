@@ -937,11 +937,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
       }
     }
   }
-  // Ajouter les times straps pour que les lignes existent dans la grille
-  const strapTimes_raw = strapSlots ? Object.keys(strapSlots)
-    .filter(k => k.startsWith(d+"|"))
-    .map(k => k.split("|")[1]) : [];
-  const baseTimes = [...new Set([...rawTimes, ...extraTimes, ...strapTimes_raw])].sort();
+  const baseTimes = [...new Set([...rawTimes, ...extraTimes])].sort();
 
   if (baseTimes.length === 0) {
     return (
@@ -983,6 +979,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     const open   = isSlotOpen(p.id, d, time);
     if (!booked && !open) return null;
 
+    const hasStrap = strapSlots && strapSlots[`${d}|${time}`];
     const avail   = isAvailable(p.id, d, time);
     const sel     = selectedPract===p.id && selectedDate===d && selectedTime===time;
     const blocked = !booked && playerHasBookingAt(time);
@@ -990,6 +987,26 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     const label   = span === 2 ? "1h" : "30'";
     const rowIdx  = timeToRow(time);
     const h       = span * ROW - 6;
+
+    // Strap actif : afficher bouton orange neutre "Strap" (sauf si déjà réservé par un joueur)
+    if (hasStrap && !booked) {
+      return (
+        <div key={`${p.id}-${time}`} style={{
+          gridRow: `${rowIdx + 1} / span ${span}`,
+          display:"flex", alignItems:"center", justifyContent:"center", padding:"2px",
+        }}>
+          <button style={{
+            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+            height:h, width:"100%", minWidth:42, padding:"0 4px",
+            background:STRAP_COLOR+"25", border:`2px solid ${STRAP_COLOR}`, borderRadius:10,
+            cursor:"not-allowed", gap:1,
+          }} title="Créneau Strap — 30 min">
+            <span style={{fontSize:9,fontWeight:800,color:STRAP_COLOR}}>🩹 Strap</span>
+            <span style={{fontSize:7,color:STRAP_COLOR+"99",fontWeight:600}}>30'</span>
+          </button>
+        </div>
+      );
+    }
 
     let bg, border, textColor, cursor;
     if (booked)               { bg="#ebebeb"; border="#ccc";    textColor="#bbb"; cursor="not-allowed"; }
@@ -1001,7 +1018,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
       <div key={`${p.id}-${time}`} style={{
         gridRow: `${rowIdx + 1} / span ${span}`,
         display:"flex", alignItems:"center", justifyContent:"center",
-        padding:"2px 2px", position:"relative",
+        padding:"2px 2px",
       }}>
         <button style={{
           display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
@@ -1017,7 +1034,6 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             {label}
           </span>
         </button>
-
       </div>
     );
   }
@@ -1148,92 +1164,18 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     </div>
   );
 
-  // Colonne Straps : couleur unique orange, indépendante du kiné
-  const strapTimes = strapSlots ? Object.keys(strapSlots)
-    .filter(k => k.startsWith(d+"|"))
-    .map(k => k.split("|")[1])
-    .filter(t => baseTimes.includes(t))
-    .sort() : [];
-
-  function StrapColumn() {
-    return (
-      <div style={{
-        display:"grid", gridTemplateRows: gridRows,
-        flex:1, minWidth:60,
-        background: STRAP_COLOR+"08",
-      }}>
-        {baseTimes.map((time, i) => (
-          <div key={`bg-strap-${time}`} style={{
-            gridRow: i+1, gridColumn:1,
-            borderBottom: time.endsWith(":00") ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
-            background: time.endsWith(":00") ? STRAP_COLOR+"08" : STRAP_COLOR+"05",
-            opacity: past ? 0.45 : 1,
-          }} />
-        ))}
-        {strapTimes.map(time => {
-          const rowIdx = baseTimes.indexOf(time);
-          if (rowIdx < 0) return null;
-          return (
-            <div key={`strap-${time}`} style={{
-              gridRow: rowIdx+1,
-              display:"flex", alignItems:"center", justifyContent:"center", padding:"2px",
-            }}>
-              <button style={{
-                width:"100%", height:ROW-6, borderRadius:10,
-                background: STRAP_COLOR+"25",
-                border: `2px solid ${STRAP_COLOR}`,
-                cursor:"default",
-                display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:1,
-              }} title="Créneau Straps — 30 min">
-                <span style={{fontSize:9, fontWeight:800, color:STRAP_COLOR}}>🩹 Straps</span>
-                <span style={{fontSize:7, color:STRAP_COLOR+"99", fontWeight:600}}>30'</span>
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  const hasAnyStrap = strapTimes.length > 0;
-
   return (
     <div style={css.gridSection}>
       <div style={{...css.calendarWrap, overflow:"hidden"}}>
-        {/* Header with optional Straps column */}
-        <div style={{display:"flex", height:48, background:T.surface3, borderBottom:`2px solid ${T.border}`}}>
-          <div style={{width:64, flexShrink:0, borderRight:`1px solid ${T.border}`}} />
-          <div style={{flex:4, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-            borderRight:SEP, background:d===todayStr()?T.navy+"14":T.surface3}}>
-            <span style={{fontSize:12, fontWeight:700, color:T.textMid}}>💆 Kinésithérapie</span>
-            <span style={{fontSize:10, color:T.textDim}}>{kines.map(k=>k.name).join(" · ")}</span>
-          </div>
-          <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-            background:"#f5eeff", borderRight: hasAnyStrap ? SEP : "none"}}>
-            <span style={{fontSize:12, fontWeight:700, color:"#9c27b0"}}>🦴 Ostéo</span>
-            <span style={{fontSize:10, color:T.textDim}}>Jean-Yves</span>
-          </div>
-          {hasAnyStrap && (
-            <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-              background:STRAP_COLOR+"12"}}>
-              <span style={{fontSize:14}}>🩹</span>
-              <span style={{fontSize:11, fontWeight:800, color:STRAP_COLOR}}>Straps</span>
-            </div>
-          )}
-        </div>
+        {header}
         <div style={{display:"flex"}}>
           {timeAxis}
           <div style={{flex:4, display:"flex", borderRight:SEP}}>
             {kines.map(p => <KineColumn key={p.id} p={p} />)}
           </div>
-          <div style={{flex:1, display:"flex", borderRight: hasAnyStrap ? SEP : "none"}}>
+          <div style={{flex:1, display:"flex"}}>
             {osteos.map(p => <OsteoColumn key={p.id} p={p} />)}
           </div>
-          {hasAnyStrap && (
-            <div style={{flex:1, display:"flex"}}>
-              <StrapColumn />
-            </div>
-          )}
         </div>
       </div>
       <div style={css.practLegend}>
@@ -1243,15 +1185,14 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             {p.role==="ostéo"&&<span style={{fontSize:10,color:T.textDim,marginLeft:2}}>(ostéo)</span>}
           </div>
         ))}
-        {hasAnyStrap && (
-          <div style={css.legendItem}>
-            <div style={{...css.practDot,background:STRAP_COLOR}}/>Straps
-          </div>
-        )}
+        <div style={css.legendItem}>
+          <div style={{...css.practDot,background:STRAP_COLOR}}/>Straps
+        </div>
       </div>
     </div>
   );
 }
+
 
 function PlayerSlotCell({ avail, slotOpen, booking, past, selected, color, weekend, halfSlot, onClick }) {
   const weBg = weekend ? "#0f1117" : "#0d1117";
