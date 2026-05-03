@@ -570,7 +570,7 @@ function PlayerView({
   }
   function handleSlotClick(pId, date, time) {
     if (!isAvailable(pId, date, time)) return;
-    if (!playerName.trim()) return; // nom requis
+    if (!playerName.trim()) return; // nom requisif (mb.some(b => b.date === date && b.time === time)) return; // déjà réservé à cette heure
     // Mode créneau uniquement — sélectionne directement praticien + date + heure
     if (selectedDate===date && selectedTime===time && selectedPract===pId) {
       setSelectedDate(null); setSelectedTime(null); setSelectedPract(null);
