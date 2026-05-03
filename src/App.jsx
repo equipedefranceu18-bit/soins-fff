@@ -969,10 +969,10 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
 
   // Helper: pour un praticien, est-ce que time ET time+30' sont ouverts/réservés ?
   function isPair(p, time) {
-    if (time.endsWith(":30")) return false; // ne fusionner qu'à partir du :00 ou :30 pairs
     const [h, m] = time.split(":").map(Number);
     let nextH = h, nextM = m + 30;
     if (nextM >= 60) { nextH++; nextM = 0; }
+    if (nextH > 23) return false;
     const nextTime = `${String(nextH).padStart(2,"0")}:${String(nextM).padStart(2,"0")}`;
     const hasThis = isSlotOpen(p.id, d, time) || !!getBooking(p.id, d, time);
     const hasNext = isSlotOpen(p.id, d, nextTime) || !!getBooking(p.id, d, nextTime);
