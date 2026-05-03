@@ -1482,28 +1482,27 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   }
 
   async function openWithDuration(duration, practId, time) {
-    if (duration === 60) {
-      onCellClick(practId, date, time, 60);
-      const [h, m] = time.split(":").map(Number);
-      let nextH = h, nextM = m + 30;
-      if (nextM >= 60) { nextH++; nextM = 0; }
-      if (nextH <= 23) {
-        const nextTime = `${String(nextH).padStart(2,"0")}:${String(nextM).padStart(2,"0")}`;
-        onCellClick(practId, date, nextTime, 60);
-      }
-    } else {
-      onCellClick(practId, date, time, 30);
-    }
+    // Un seul appel en base — duration=60 ou 30 stockée dans open_slots
+    onCellClick(practId, date, time, duration);
   }
 
-  // Pour une colonne de kiné, calculer les lignes à afficher
-  // en fusionnant les paires consécutives 30'+30' en un bloc 1h
+  // Toujours H30 — alignement parfait garanti entre toutes les colonnes
+  // Un slot duration=60 colore les deux lignes H30 correspondantes (time et time+30)
   function buildKineRows(k) {
-    const rows = [];
-    for (const time of displayTimes) {
-      rows.push({ time, merged: false, h: H30 });
-    }
-    return rows;
+    return displayTimes.map(time => ({ time, h: H30 }));
+  }
+
+  // Retourne le time du slot 1h qui "couvre" cette ligne (la 2e moitié d'un bloc 1h)
+  function getCoveringSlot(k, time) {
+    // Trouver le créneau précédent dans displayTimes
+    const idx = displayTimes.indexOf(time);
+    if (idx <= 0) return null;
+    const prevTime = displayTimes[idx - 1];
+    const prevOpen = isSlotOpen(k.id, date, prevTime);
+    const prevBooking = getBooking(k.id, date, prevTime);
+    const prevDur = getSlotDuration(k.id, date, prevTime);
+    if ((prevOpen || prevBooking) && prevDur === 60) return prevTime;
+    return null;
   }
 
   // La grille staff : axe temps fixe H30, mais chaque colonne kiné
@@ -1511,19 +1510,45 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   // Pour l'axe temps, on affiche toujours H30 par créneau
   function renderCell(k, time, h) {
     const { booking, slotOpen, rec } = getSlotStatus(k, time);
-    const is1h = h > H30;
     const isTarget = staffTarget?.practId===k.id && staffTarget?.date===date && staffTarget?.time===time;
+    const isHour = time.endsWith(":00");
+
+    // Vérifier si cette ligne :30 est couverte par un slot 1h sur la ligne :00 précédente
+    const coveringTime = getCoveringSlot(k, time);
+    if (coveringTime) {
+      // Cette cellule est la 2e moitié d'un slot 1h — afficher le même fond, sans indicateur
+      const covBooking = getBooking(k.id, date, coveringTime);
+      const covOpen = isSlotOpen(k.id, date, coveringTime);
+      const covRec = isRecurring(k.id, date, coveringTime);
+      let bg = T.surface3+"88";
+      let bl = "3px solid transparent";
+      if (covBooking) { bg = k.color+"18"; bl = `3px solid ${k.color}`; }
+      else if (covOpen) {
+        bg = covRec ? k.color+"14" : k.color+"0c";
+        bl = covRec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
+      }
+      return (
+        <div key={`${k.id}-${time}`} style={{
+          height: h, flexShrink: 0,
+          borderBottom: `1px solid ${T.border2}`,
+          borderRight: `1px solid ${T.border}`,
+          background: bg, borderLeft: bl,
+          overflow: "hidden",
+        }} />
+      );
+    }
 
     const commonStyle = {
       height: h, flexShrink: 0,
-      borderBottom: time.endsWith(":00") ? `1px solid ${T.border}` : `1px solid ${T.border2}`,
+      borderBottom: isHour ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
       borderRight: `1px solid ${T.border}`,
       overflow: "hidden",
       transition: "background 0.1s",
-      background: time.endsWith(":30") ? T.surface3+"88" : T.surface,
     };
 
-    let bg = T.surface, bl = "3px solid transparent", indicator = null;
+    let bg = isHour ? T.surface : T.surface3+"88";
+    let bl = "3px solid transparent";
+    let indicator = null;
 
     if (booking) {
       bg = k.color+"18"; bl = `3px solid ${k.color}`;
@@ -1605,7 +1630,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
             <div key={`axis-${time}`} style={{
               height: H30, flexShrink:0,
               background: time.endsWith(":00") ? T.surface2 : T.surface3,
-              borderBottom: time.endsWith(":00") ? `1px solid ${T.border}` : `1px solid ${T.border2}`,
+              borderBottom: time.endsWith(":00") ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
               borderRight:`1px solid ${T.border}`,
               display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 8px",
             }}>
