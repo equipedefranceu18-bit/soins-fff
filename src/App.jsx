@@ -536,9 +536,9 @@ function PlayerView({
   isAvailable, getBooking, isSlotOpen, getSlotsForContext, isSplit, confirmBooking,
   confirmation, setConfirmation, myBookings, cancelMyBooking, setView
 }) {
-  const practitioners = bookingRole === "kiné" ? kines : osteos;
+  // Tous les praticiens ensemble — kinés + ostéo dans la même vue
+  const practitioners = [...kines, ...osteos];
   const [showMy, setShowMy] = useState(false);
-  // Single-day view: track the currently displayed day
   const [activeDay, setActiveDay] = useState(todayStr());
   const mb = myBookings();
   const future = mb.filter(b => b.date >= todayStr());
@@ -646,16 +646,6 @@ function PlayerView({
           <option value="">-- Sélectionner --</option>
           {PLAYERS.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-      </div>
-
-      {/* Role tabs */}
-      <div style={css.tabs}>
-        {["kiné","ostéo"].map(r => (
-          <button key={r} style={{...css.tab,...(bookingRole===r?css.tabActive:{})}}
-            onClick={()=>{ setBookingRole(r); setSelectedPract(null); setSelectedDate(null); setSelectedTime(null); }}>
-            {r==="kiné"?"💆 Kinésithérapie":"🦴 Ostéopathie"}
-          </button>
-        ))}
       </div>
 
       {/* Mode tabs */}
@@ -984,8 +974,9 @@ function BySlotGrid({ practitioners, days, selectedPract, selectedDate, selected
                 {/* Full-height container for 1h buttons (positioned absolutely) */}
                 {!past && avail1h.length > 0 && (
                   <div style={{
-                    position:"absolute", left:70, top:0,
+                    position:"absolute", left:70, top:0, right:0,
                     height:H*2, display:"flex", alignItems:"center",
+                    justifyContent:"center",
                     gap:6, padding:"0 8px", zIndex:2, pointerEvents:"none",
                   }}>
                     {avail1h.map(p => (
