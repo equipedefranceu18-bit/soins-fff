@@ -910,11 +910,13 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
   }
 
   // Header
+  const SEP = `2px solid ${T.navy}33`; // bordure séparatrice identique partout
+
   const header = (
     <div style={{display:"flex", height:48, background:T.surface3, borderBottom:`2px solid ${T.border}`}}>
       <div style={{width:70, flexShrink:0, borderRight:`1px solid ${T.border}`}} />
       <div style={{flex:4, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-        borderRight:`2px solid ${T.navy}44`,
+        borderRight:SEP,
         background: d===todayStr() ? T.navy+"14" : isWeekend(days[0]) ? "#f5f0f8" : T.surface3,
         borderBottom: d===todayStr() ? `3px solid ${T.navy}` : "none",
       }}>
@@ -955,7 +957,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             <span style={{fontSize:11,fontWeight:700,color:T.textMid}}>{baseTime}</span>
             <span style={{fontSize:9,color:T.textDim}}>1h</span>
           </div>
-          <div style={{...cellStyle(4), borderRight:`2px solid ${T.navy}22`, flexWrap:"wrap"}}>
+          <div style={{...cellStyle(4), borderRight:SEP, flexWrap:"wrap"}}>
             {availK1h.map(p => <PractBtn key={p.id} p={p} time={baseTime} h={H*2} />)}
             {availK1h.length===0 && <span style={{fontSize:10,opacity:0.15}}>—</span>}
           </div>
@@ -996,11 +998,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
           </div>
 
           {/* Colonne Kinés */}
-          <div style={{flex:4,borderRight:`2px solid ${T.navy}44`,background:T.surface,opacity:past?0.45:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            {splitK.length === 0 && availK1h.length === 0 ? (
-              <span style={{fontSize:9,opacity:0.12}}>—</span>
-            ) : (
-              <div style={{display:"flex",width:"100%",height:H*2,alignItems:"center",justifyContent:"center",gap:4,padding:"0 4px",flexWrap:"wrap"}}>
+          <div style={{flex:4,borderRight:SEP,background:T.surface,opacity:past?0.45:1,display:"flex",alignItems:"center",justifyContent:"center",gap:4,padding:"0 4px",flexWrap:"wrap"}}>
                 {/* Praticiens 1h */}
                 {availK1h.map(p => (
                   <div key={p.id} style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:H*2-6,minWidth:40,padding:"0 6px",background:selectedPract===p.id&&selectedDate===d&&selectedTime===baseTime?p.color:p.color+"22",border:`2px solid ${p.color}`,borderRadius:10,cursor:"pointer",boxShadow:selectedPract===p.id&&selectedDate===d&&selectedTime===baseTime?`0 2px 8px ${p.color}44`:"none"}}
@@ -1033,8 +1031,6 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
                   );
                 })}
                 {availK1h.length===0&&splitK.length===0&&<span style={{fontSize:9,opacity:0.12}}>—</span>}
-              </div>
-            )}
           </div>
 
           {/* Colonne Ostéo */}
