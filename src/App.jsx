@@ -362,7 +362,7 @@ export default function App() {
           selectedTime={selectedTime} setSelectedTime={setSelectedTime}
           isAvailable={isAvailable} getBooking={getBooking}
           isSlotOpen={isSlotOpen} getSlotsForContext={getSlotsForContext} isSplit={isSplit}
-          confirmBooking={confirmBooking} bookings={bookings}
+          confirmBooking={confirmBooking} bookings={bookings} getSlotDuration,
 getSlotDuration={getSlotDuration}
           confirmation={confirmation} setConfirmation={setConfirmation}
           myBookings={myBookings} cancelMyBooking={cancelMyBooking}
