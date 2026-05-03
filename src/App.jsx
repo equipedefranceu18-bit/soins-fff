@@ -1385,17 +1385,16 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
 
   function handleCellClick(practId, time) {
     if (isPastDay) return;
-    if (subMode === "open") {
-      const { slotOpen } = getSlotStatus(kines.find(k=>k.id===practId), time);
-      if (!slotOpen) {
-        // Créneau fermé → demander la durée
-        setDurationPicker({ practId, time });
-      } else {
-        // Créneau ouvert → fermer directement
-        onCellClick(practId, date, time);
-      }
-    } else {
+    const { slotOpen, booking } = getSlotStatus(kines.find(k=>k.id===practId), time);
+    if (booking) {
+      // Réservation → ouvrir le modal
       onCellClick(practId, date, time);
+    } else if (slotOpen) {
+      // Ouvert → fermer directement
+      onCellClick(practId, date, time);
+    } else {
+      // Fermé → demander la durée
+      setDurationPicker({ practId, time });
     }
   }
 
