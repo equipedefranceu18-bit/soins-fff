@@ -860,17 +860,25 @@ function ByPractGrid({ practitioners, days, selectedPract, onPractSelect, select
 function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, selectedTime,
   isAvailable, isSlotOpen, getSlotsForContext, isSplit, onSlotClick, bookings, playerName, getBooking, getSlotDuration }) {
 
-  const H1 = 56;
-  const H2 = 28;
+  const ROW = 28; // hauteur d'une unité de 30 minutes en px
   const d = days.length === 1 ? fmtDate(days[0]) : null;
   if (!d) return null;
   const past = isPast(d);
   const osteos = practitioners.filter(p => p.role === "ostéo");
   const SEP = `2px solid ${T.navy}33`;
 
+  // Tous les times ouverts, triés
   const baseTimes = [...new Set(
     practitioners.flatMap(p => getSlotsForContext(p.id, d))
   )].sort();
+
+  if (baseTimes.length === 0) {
+    return (
+      <div style={css.gridSection}>
+        <div style={css.emptyHint}>Aucun créneau disponible ce jour.</div>
+      </div>
+    );
+  }
 
   function playerHasBookingAt(time) {
     if (!playerName) return false;
@@ -879,19 +887,34 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     );
   }
 
-  // Bouton individuel — hauteur basée sur la PROPRE durée du slot, pas la hauteur de ligne
-  function Btn({ p, time, forceLabel }) {
+  // Convertir un time "HH:MM" en index de ligne (unités de 30 min depuis le premier slot)
+  function timeToRow(time) {
+    return baseTimes.indexOf(time);
+  }
+
+  // Nombre de lignes qu'occupe un slot selon sa durée
+  function slotRowSpan(practId, time) {
+    const dur = getSlotDuration(practId, d, time);
+    if (dur !== 60) return 1;
+    // Vérifier que la ligne suivante existe dans baseTimes
+    const idx = timeToRow(time);
+    if (idx >= 0 && baseTimes[idx + 1]) return 2;
+    return 1;
+  }
+
+  // Bouton individuel — positionné en grid row
+  function Btn({ p, time }) {
     const booked = !!getBooking(p.id, d, time);
     const open   = isSlotOpen(p.id, d, time);
-    if (!booked && !open) return <div style={{minWidth:44,flexShrink:0}} />;
+    if (!booked && !open) return null;
 
     const avail   = isAvailable(p.id, d, time);
     const sel     = selectedPract===p.id && selectedDate===d && selectedTime===time;
     const blocked = !booked && playerHasBookingAt(time);
-    const dur = getSlotDuration(p.id, d, time);
-    const label   = forceLabel === "1h" ? "1h" : (dur === 60 ? "1h" : "30'");
-    // Hauteur propre : 1h → H1-6, 30' → H2-6
-    const btnH = dur === 60 ? H1 - 6 : H2 - 6;
+    const span    = slotRowSpan(p.id, time);
+    const label   = span === 2 ? "1h" : "30'";
+    const rowIdx  = timeToRow(time);
+    const h       = span * ROW - 6;
 
     let bg, border, textColor, cursor;
     if (booked)               { bg="#ebebeb"; border="#ccc";    textColor="#bbb"; cursor="not-allowed"; }
@@ -900,157 +923,161 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     else                      { bg=p.color+"25"; border=p.color; textColor=p.color; cursor="pointer"; }
 
     return (
-      <button style={{
-        display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-        height:btnH, minWidth:44, padding:"0 6px", flexShrink:0,
-        background:bg, border:`2px solid ${border}`, borderRadius:10,
-        cursor, gap:2, boxShadow:sel?`0 2px 10px ${p.color}55`:"none",
-      }}
-        onClick={()=>(avail&&!blocked&&!booked)&&onSlotClick(p.id,d,time)}
-        title={booked?"Réservé":blocked?"Déjà un RDV à cette heure":`${p.name} — ${label==="1h"?"1 heure":"30 min"}`}>
-        <span style={{fontSize:13,fontWeight:800,color:textColor}}>{p.initials}</span>
-        <span style={{fontSize:8,color:sel?"rgba(255,255,255,0.85)":booked?"#ccc":p.color+"99",fontWeight:700}}>
-          {label}
-        </span>
-      </button>
-    );
-  }
-
-  // Pour chaque kiné, affiche soit 1 grand bouton 1h, soit 2 mini-boutons 30' empilés
-  // L'ordre GU DE AL CL est toujours respecté
-  function KineCell({ p, baseTime }) {
-    const halfTime = `${baseTime.split(":")[0].padStart(2,"0")}:30`;
-    const split = isSplit(p.id, d, baseTime);
-
-    if (!split) {
-      return <Btn p={p} time={baseTime} h={H1} />;
-    }
-
-    // Créneau splitté : deux mini-boutons empilés
-    const open00 = isSlotOpen(p.id,d,baseTime) || !!getBooking(p.id,d,baseTime);
-    const open30 = isSlotOpen(p.id,d,halfTime) || !!getBooking(p.id,d,halfTime);
-    if (!open00 && !open30) return <div style={{minWidth:44,flexShrink:0}} />;
-
-    return (
-      <div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center",justifyContent:"center",height:H1}}>
-        {open00
-          ? <Btn p={p} time={baseTime} h={H2} />
-          : <div style={{height:H2-6,minWidth:44}} />}
-        {open30
-          ? <Btn p={p} time={halfTime} h={H2} />
-          : <div style={{height:H2-6,minWidth:44}} />}
+      <div key={`${p.id}-${time}`} style={{
+        gridRow: `${rowIdx + 1} / span ${span}`,
+        display:"flex", alignItems:"center", justifyContent:"center",
+        padding:"2px 2px",
+      }}>
+        <button style={{
+          display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+          height:h, width:"100%", minWidth:42, padding:"0 4px",
+          background:bg, border:`2px solid ${border}`, borderRadius:10,
+          cursor, gap:1, boxShadow:sel?`0 2px 10px ${p.color}55`:"none",
+          transition:"all 0.15s",
+        }}
+          onClick={()=>(avail&&!blocked&&!booked)&&onSlotClick(p.id,d,time)}
+          title={booked?"Réservé":blocked?"Déjà un RDV à cette heure":`${p.name} — ${label==="1h"?"1 heure":"30 min"}`}>
+          <span style={{fontSize:13,fontWeight:800,color:textColor}}>{p.initials}</span>
+          <span style={{fontSize:8,color:sel?"rgba(255,255,255,0.85)":booked?"#ccc":p.color+"99",fontWeight:700}}>
+            {label}
+          </span>
+        </button>
       </div>
     );
   }
 
-  function OsteoCell({ p, baseTime }) {
-    const halfTime = `${baseTime.split(":")[0].padStart(2,"0")}:30`;
-    const split = isSplit(p.id, d, baseTime);
-    if (!split) return <Btn p={p} time={baseTime} h={H1} />;
-    const open00 = isSlotOpen(p.id,d,baseTime) || !!getBooking(p.id,d,baseTime);
-    const open30 = isSlotOpen(p.id,d,halfTime) || !!getBooking(p.id,d,halfTime);
-    if (!open00 && !open30) return null;
+  const nRows = baseTimes.length;
+  // gridTemplateRows: une ligne par time dans baseTimes
+  const gridRows = baseTimes.map(() => `${ROW}px`).join(" ");
+
+  // Axe temps : colonne fixe
+  const timeAxis = (
+    <div style={{width:64, flexShrink:0, display:"flex", flexDirection:"column"}}>
+      <div style={{height:48, background:T.surface3, borderBottom:`2px solid ${T.border}`, borderRight:`1px solid ${T.border}`}} />
+      {baseTimes.map((time, i) => {
+        const isHour = time.endsWith(":00");
+        return (
+          <div key={time} style={{
+            height: ROW, flexShrink:0,
+            background: isHour ? T.surface2 : T.surface3,
+            borderBottom: isHour ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
+            borderRight:`1px solid ${T.border}`,
+            display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 8px",
+          }}>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize: isHour?11:9, fontWeight:isHour?700:400, color:isHour?T.textMid:T.textDim}}>{time}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // Colonne kiné : CSS grid avec positionnement par row
+  function KineColumn({ p }) {
+    const slots = getSlotsForContext(p.id, d).filter(t => baseTimes.includes(t));
+    // Filtrer les slots qui sont couverts par un slot 1h précédent
+    const covered = new Set();
+    for (const time of slots) {
+      const span = slotRowSpan(p.id, time);
+      if (span === 2) {
+        const nextIdx = timeToRow(time) + 1;
+        if (nextIdx < baseTimes.length) covered.add(baseTimes[nextIdx]);
+      }
+    }
+    const visibleSlots = slots.filter(t => !covered.has(t));
+
     return (
-      <div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center",justifyContent:"center",height:H1}}>
-        {open00 ? <Btn p={p} time={baseTime} h={H2} /> : <div style={{height:H2-6,minWidth:44}} />}
-        {open30 ? <Btn p={p} time={halfTime} h={H2} /> : <div style={{height:H2-6,minWidth:44}} />}
+      <div style={{
+        display:"grid",
+        gridTemplateRows: gridRows,
+        flex:1, minWidth:52,
+        borderRight:`1px solid ${T.border}`,
+      }}>
+        {/* Lignes de fond (séparateurs) */}
+        {baseTimes.map((time, i) => (
+          <div key={`bg-${time}`} style={{
+            gridRow: i+1,
+            gridColumn: 1,
+            borderBottom: time.endsWith(":00") ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
+            background: time.endsWith(":00") ? T.surface : T.surface3+"88",
+            opacity: past ? 0.45 : 1,
+          }} />
+        ))}
+        {/* Boutons de slots */}
+        {visibleSlots.map(time => (
+          <Btn key={time} p={p} time={time} />
+        ))}
+      </div>
+    );
+  }
+
+  function OsteoColumn({ p }) {
+    const slots = getSlotsForContext(p.id, d).filter(t => baseTimes.includes(t));
+    const covered = new Set();
+    for (const time of slots) {
+      const span = slotRowSpan(p.id, time);
+      if (span === 2) {
+        const nextIdx = timeToRow(time) + 1;
+        if (nextIdx < baseTimes.length) covered.add(baseTimes[nextIdx]);
+      }
+    }
+    const visibleSlots = slots.filter(t => !covered.has(t));
+    return (
+      <div style={{
+        display:"grid",
+        gridTemplateRows: gridRows,
+        flex:1, minWidth:52,
+        borderRight:`1px solid ${T.border}`,
+        background:"#faf5ff",
+      }}>
+        {baseTimes.map((time, i) => (
+          <div key={`bg-${time}`} style={{
+            gridRow: i+1,
+            gridColumn: 1,
+            borderBottom: time.endsWith(":00") ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
+            background: time.endsWith(":00") ? "#faf5ff" : "#f5eeff88",
+            opacity: past ? 0.45 : 1,
+          }} />
+        ))}
+        {visibleSlots.map(time => (
+          <Btn key={time} p={p} time={time} />
+        ))}
       </div>
     );
   }
 
   const header = (
-    <div style={{display:"flex",height:48,background:T.surface3,borderBottom:`2px solid ${T.border}`}}>
-      <div style={{width:70,flexShrink:0,borderRight:`1px solid ${T.border}`}} />
-      <div style={{flex:4,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+    <div style={{display:"flex", height:48, background:T.surface3, borderBottom:`2px solid ${T.border}`}}>
+      <div style={{width:64, flexShrink:0, borderRight:`1px solid ${T.border}`}} />
+      <div style={{flex:4, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
         borderRight:SEP,
-        background:d===todayStr()?T.navy+"14":isWeekend(days[0])?"#f5f0f8":T.surface3,
-        borderBottom:d===todayStr()?`3px solid ${T.navy}`:"none"}}>
-        <span style={{fontSize:12,fontWeight:700,color:T.textMid}}>💆 Kinésithérapie</span>
-        <span style={{fontSize:10,color:T.textDim}}>{kines.map(k=>k.name).join(" · ")}</span>
-        {d===todayStr()&&<div style={{width:6,height:6,borderRadius:"50%",background:T.navy,marginTop:2}}/>}
+        background:d===todayStr()?T.navy+"14":T.surface3}}>
+        <span style={{fontSize:12, fontWeight:700, color:T.textMid}}>💆 Kinésithérapie</span>
+        <span style={{fontSize:10, color:T.textDim}}>{kines.map(k=>k.name).join(" · ")}</span>
       </div>
-      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#f5eeff"}}>
-        <span style={{fontSize:12,fontWeight:700,color:"#9c27b0"}}>🦴 Ostéo</span>
-        <span style={{fontSize:10,color:T.textDim}}>Jean-Yves</span>
+      <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"#f5eeff"}}>
+        <span style={{fontSize:12, fontWeight:700, color:"#9c27b0"}}>🦴 Ostéo</span>
+        <span style={{fontSize:10, color:T.textDim}}>Jean-Yves</span>
       </div>
     </div>
   );
 
-  // Un slot 1h = un seul enregistrement avec duration=60
-  function isPair(p, time) {
-    const open = isSlotOpen(p.id, d, time) || !!getBooking(p.id, d, time);
-    return open && getSlotDuration(p.id, d, time) === 60;
-  }
-
-  // Est-ce que ce time est la "2e moitié" couverte par un slot 1h précédent ?
-  function isCoveredByPrev(p, time) {
-    const idx = baseTimes.indexOf(time);
-    if (idx <= 0) return false;
-    const prevTime = baseTimes[idx - 1];
-    const prevOpen = isSlotOpen(p.id, d, prevTime) || !!getBooking(p.id, d, prevTime);
-    return prevOpen && getSlotDuration(p.id, d, prevTime) === 60;
-  }
-
-  // Construire les lignes — chaque ligne est un créneau de 30'
-  // La fusion 1h se fait PER PRATICIEN dans le rendu du bouton
-  // Une ligne par time dans baseTimes.
-  // Si au moins un praticien a duration=60 sur ce time → ligne H1, et on saute la suivante pour ce praticien.
-  // La ligne suivante dans baseTimes reste quand même affichée pour les praticiens qui ont un slot 30' dessus.
-  // Approche : chaque time génère une ligne dont la hauteur est H1 si QUELQU'UN a duration=60, sinon H2.
-  const rows = [];
-  const skippedTimes = new Set();
-
-  for (let i = 0; i < baseTimes.length; i++) {
-    const time = baseTimes[i];
-    if (skippedTimes.has(time)) continue;
-
-    const allPracts = [...kines, ...osteos];
-    // Y a-t-il au moins un praticien avec un slot 1h à ce time ?
-    const anyIs1h = allPracts.some(p => isPair(p, time));
-    const rowH = anyIs1h ? H1 : H2;
-
-    // Si 1h, la ligne suivante dans baseTimes est la "2e moitié" — on ne l'affiche pas séparément
-    // SAUF si un autre praticien a un vrai slot 30' dessus (on garde alors la ligne)
-    const nextTime = baseTimes[i + 1];
-    if (anyIs1h && nextTime) {
-      // Vérifier si nextTime a des praticiens avec des slots propres (pas couverts)
-      const nextHasOwn = allPracts.some(p => {
-        const open = isSlotOpen(p.id, d, nextTime) || !!getBooking(p.id, d, nextTime);
-        return open && !isCoveredByPrev(p, nextTime);
-      });
-      if (!nextHasOwn) skippedTimes.add(nextTime);
-    }
-
-    rows.push(
-      <div key={time} style={{display:"flex", height:rowH, borderBottom:`1px solid ${T.border2}`}}>
-        <div style={{width:70,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",
-          flexDirection:"column",alignItems:"flex-end",justifyContent:"center",
-          padding:"0 8px",background:T.surface2}}>
-          <span style={{fontSize:anyIs1h?11:10,fontWeight:anyIs1h?700:400,
-            color:anyIs1h?T.textMid:T.textDim}}>{time}</span>
-          <span style={{fontSize:9,color:anyIs1h?T.textDim:"#e05090"}}>{anyIs1h?"1h":"30'"}</span>
-        </div>
-        <div style={{flex:4,borderRight:SEP,display:"flex",alignItems:"center",justifyContent:"center",
-          gap:6,padding:"0 4px",background:T.surface,opacity:past?0.45:1}}>
-          {kines.map(p => <Btn key={p.id} p={p} time={time} />)}
-          {!kines.some(p=>isSlotOpen(p.id,d,time)||!!getBooking(p.id,d,time))&&
-            <span style={{fontSize:11,opacity:0.15}}>—</span>}
-        </div>
-        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",
-          gap:4,padding:"0 2px",background:"#faf5ff",opacity:past?0.45:1}}>
-          {osteos.map(p => <Btn key={p.id} p={p} time={time} />)}
-          {!osteos.some(p=>isSlotOpen(p.id,d,time)||!!getBooking(p.id,d,time))&&
-            <span style={{fontSize:9,opacity:0.12}}>—</span>}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={css.gridSection}>
-      <div style={{...css.calendarWrap,overflow:"hidden"}}>
+      <div style={{...css.calendarWrap, overflow:"hidden"}}>
         {header}
-        {rows}
+        <div style={{display:"flex"}}>
+          {timeAxis}
+          {/* Colonnes kinés groupées sous un flex */}
+          <div style={{flex:4, display:"flex", borderRight:SEP}}>
+            {kines.map(p => <KineColumn key={p.id} p={p} />)}
+          </div>
+          {/* Colonnes ostéos */}
+          <div style={{flex:1, display:"flex"}}>
+            {osteos.map(p => <OsteoColumn key={p.id} p={p} />)}
+          </div>
+        </div>
       </div>
       <div style={css.practLegend}>
         {practitioners.map(p=>(
