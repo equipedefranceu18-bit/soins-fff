@@ -1591,6 +1591,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       background: time.endsWith(":30") ? T.surface3+"88" : T.surface,
     };
 
+    const isHour = time.endsWith(":00");
     const slotPast = isSlotPast(time);
     let bg = isHour ? T.surface : T.surface3+"88";
     let bl = "3px solid transparent";
