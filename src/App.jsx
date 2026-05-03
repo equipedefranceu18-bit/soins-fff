@@ -950,22 +950,25 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
   // gridTemplateRows: une ligne par time dans baseTimes
   const gridRows = baseTimes.map(() => `${ROW}px`).join(" ");
 
-  // Axe temps : colonne fixe
+  // Axe temps : même CSS grid que les colonnes pour alignement parfait
   const timeAxis = (
-    <div style={{width:64, flexShrink:0, display:"flex", flexDirection:"column"}}>
-      <div style={{height:48, background:T.surface3, borderBottom:`2px solid ${T.border}`, borderRight:`1px solid ${T.border}`}} />
+    <div style={{
+      width:64, flexShrink:0,
+      display:"grid",
+      gridTemplateRows: gridRows,
+      borderRight:`1px solid ${T.border}`,
+    }}>
       {baseTimes.map((time, i) => {
         const isHour = time.endsWith(":00");
         return (
           <div key={time} style={{
-            height: ROW, flexShrink:0,
+            gridRow: i+1,
             background: isHour ? T.surface2 : T.surface3,
             borderBottom: isHour ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
-            borderRight:`1px solid ${T.border}`,
             display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 8px",
           }}>
-            <div style={{textAlign:"right"}}>
-              <div style={{fontSize: isHour?11:9, fontWeight:isHour?700:400, color:isHour?T.textMid:T.textDim}}>{time}</div>
+            <div style={{fontSize: isHour?11:9, fontWeight:isHour?700:400, color:isHour?T.textMid:T.textDim}}>
+              {time}
             </div>
           </div>
         );
