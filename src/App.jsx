@@ -379,6 +379,7 @@ export default function App() {
   // ── player booking ────────────────────────────────────────────────────────────
   async function confirmBooking() {
     if (!playerName.trim() || !selectedPract || !selectedDate || !selectedTime) return;
+    console.log("confirmBooking selectedPract=", selectedPract, "STRAP_ID=", STRAP_ID);
     if (selectedPract && selectedPract.startsWith(STRAP_ID + '_')) {
       const kineId = selectedPract.replace(STRAP_ID + '_', '');
       await bookStrap(kineId, selectedDate, selectedTime, playerName.trim());
