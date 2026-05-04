@@ -1168,23 +1168,19 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     }}>
       {baseTimes.map((time, i) => {
         const isHour = time.endsWith(":00");
+        const block = getBlockForTime(time);
         return (
-          {(() => {
-            const block = getBlockForTime(time);
-            return (
-              <div key={time} style={{
-                gridRow: i+1,
-                background: block ? block.color+"18" : isHour ? T.surface2 : T.surface3,
-                borderBottom: isHour ? `2px solid ${block ? block.color+"44" : T.border}` : `1px solid ${T.border2}`,
-                borderLeft: block ? `3px solid ${block.color}` : "none",
-                display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 8px",
-              }}>
-                <div style={{fontSize: isHour?11:9, fontWeight:isHour?700:400, color: block ? block.color : isHour?T.textMid:T.textDim}}>
-                  {time}
-                </div>
-              </div>
-            );
-          })()}
+          <div key={time} style={{
+            gridRow: i+1,
+            background: block ? block.color+"18" : isHour ? T.surface2 : T.surface3,
+            borderBottom: isHour ? `2px solid ${block ? block.color+"44" : T.border}` : `1px solid ${T.border2}`,
+            borderLeft: block ? `3px solid ${block.color}` : "none",
+            display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 8px",
+          }}>
+            <div style={{fontSize: isHour?11:9, fontWeight:isHour?700:400, color: block ? block.color : isHour?T.textMid:T.textDim}}>
+              {time}
+            </div>
+          </div>
         );
       })}
     </div>
