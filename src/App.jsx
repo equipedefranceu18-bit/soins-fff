@@ -416,7 +416,8 @@ export default function App() {
     const b = getBooking(practId, date, time);
     if (b && !b.locked && b.player === playerName && !isPast(date)) {
       // Marquer comme annulé (garde la trace) plutôt que supprimer
-      await supabase.from("bookings").update({ cancelled: true }).eq("pract_id",practId).eq("date",date).eq("time",time);
+      // Garder la trace (cancelled=true) mais libérer le créneau (player=null)
+      await supabase.from("bookings").update({ cancelled: true, player: "" }).eq("pract_id",practId).eq("date",date).eq("time",time);
       await loadAll();
     }
   }
@@ -1087,7 +1088,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
   // Bouton individuel — positionné en grid row
   function Btn({ p, time }) {
     const _bk = getBooking(p.id, d, time);
-    const booked = !!_bk && !_bk.cancelled;
+    const booked = !!_bk && !!_bk.player && !_bk.cancelled;
     const open   = isSlotOpen(p.id, d, time);
     // Strap pour ce kiné spécifique
     const strapKey = `${STRAP_ID}_${p.id}|${d}|${time}`;
@@ -2023,7 +2024,10 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       );
     }
 
-    if (booking && booking.cancelled) {
+    if (booking && booking.cancelled && !booking.player) {
+      // Annulé et libéré — traiter comme slot ouvert
+      bg = isHour ? T.surface : T.surface3+"88"; bl = "3px solid transparent";
+    } else if (booking && booking.cancelled) {
       bg = "#f5f5f5"; bl = "3px solid #ccc";
       indicator = (
         <div style={{width:"100%", padding:"0 4px", overflow:"hidden"}}>
