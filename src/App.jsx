@@ -397,7 +397,8 @@ export default function App() {
       setSelectedPract(null); setSelectedDate(null); setSelectedTime(null);
       return;
     }
-    const is30 = selectedTime.endsWith(":30") || isSplit(selectedPract, selectedDate, selectedTime);
+    const slotDur = getSlotDuration(selectedPract, selectedDate, selectedTime);
+    const is30 = slotDur === 30 || selectedTime.endsWith(":30") || isSplit(selectedPract, selectedDate, selectedTime);
     await supabase.from("bookings").upsert({pract_id:selectedPract, date:selectedDate, time:selectedTime, player:playerName.trim(), locked:false, note:"", duration:is30?30:60}, {onConflict:"pract_id,date,time"});
     await loadAll();
     const p = PRACTITIONERS.find(x => x.id === selectedPract);
