@@ -224,13 +224,11 @@ export default function App() {
     const practId = strapPractId(kineId);
     const key = `${practId}|${date}|${time}`;
     const s = strapSlots[key];
-    console.log("bookStrap", practId, date, time, player, "s=", s);
-    if (!s) { console.log("bookStrap: no slot found"); return; }
-    if (s.player && s.player !== "") { console.log("bookStrap: already booked", s.player); return; }
-    const res = await supabase.from("bookings")
+    if (!s) return;
+    if (s.player && s.player !== "") return;
+    await supabase.from("bookings")
       .update({ player, locked: false })
       .eq("pract_id", practId).eq("date", date).eq("time", time);
-    console.log("bookStrap result:", res);
     await loadAll();
   }
 
@@ -379,7 +377,6 @@ export default function App() {
   // ── player booking ────────────────────────────────────────────────────────────
   async function confirmBooking() {
     if (!playerName.trim() || !selectedPract || !selectedDate || !selectedTime) return;
-    console.log("confirmBooking selectedPract=", selectedPract, "STRAP_ID=", STRAP_ID);
     if (selectedPract && selectedPract.startsWith(STRAP_ID + '_')) {
       const kineId = selectedPract.replace(STRAP_ID + '_', '');
       await bookStrap(kineId, selectedDate, selectedTime, playerName.trim());
