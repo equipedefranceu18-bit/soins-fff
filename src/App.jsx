@@ -384,7 +384,8 @@ export default function App() {
     const is30 = selectedTime.endsWith(":30") || isSplit(selectedPract, selectedDate, selectedTime);
     await supabase.from("bookings").upsert({pract_id:selectedPract, date:selectedDate, time:selectedTime, player:playerName.trim(), locked:false, note:"", duration:is30?30:60});
     await loadAll();
-    const p = PRACTITIONERS.find(x => x.id === selectedPract);
+    const p = PRACTITIONERS.find(x => x.id === selectedPract) ||
+    (selectedPract?.startsWith(STRAP_ID+'_') ? {id:selectedPract,name:'Strap',color:STRAP_COLOR,initials:'🩹'} : null);
     setConfirmation({ pract: p, date: selectedDate, time: selectedTime, player: playerName, duration: is30 ? 30 : 60 });
     setSelectedPract(null); setSelectedDate(null); setSelectedTime(null);
   }
@@ -1530,7 +1531,9 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
               <div key={month} style={{padding:"0 20px 16px"}}>
                 <div style={css.histMonthHeader}>{monthLabel} — {entries.length} soin{entries.length>1?"s":""}</div>
                 {entries.map((b,i) => {
-                  const p = PRACTITIONERS.find(x=>x.id===b.pId);
+                  const p = PRACTITIONERS.find(x=>x.id===b.pId) ||
+                    (b.pId?.startsWith("strap_") ? {id:b.pId,name:"Strap",color:STRAP_COLOR,initials:"🩹"} : null);
+                  if (!p) return null;
                   return (
                     <div key={i} style={css.histRow}>
                       <div style={{...css.practDot,background:p.color,flexShrink:0}} />
