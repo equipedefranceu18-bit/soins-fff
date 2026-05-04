@@ -1026,8 +1026,14 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
   const strapTimesForDay = strapSlots ? [...new Set(Object.keys(strapSlots)
     .filter(k => { const parts = k.split("|"); return parts[1] === d; })
     .map(k => k.split("|")[2]))] : [];
-  // Toujours afficher toutes les plages horaires de la journée
-  const baseTimes = [...new Set([...BASE_SLOTS, ...strapTimesForDay])].sort();
+  // Toutes les plages 30' de 09:00 à 21:30 + straps
+  const allHalfHours = [];
+  for (let h = 9; h <= 21; h++) {
+    allHalfHours.push(`${String(h).padStart(2,"0")}:00`);
+    allHalfHours.push(`${String(h).padStart(2,"0")}:30`);
+  }
+  allHalfHours.push("22:00");
+  const baseTimes = [...new Set([...allHalfHours, ...strapTimesForDay])].sort();
 
   if (baseTimes.length === 0) {
     return (
@@ -1175,11 +1181,17 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             background: block ? block.color+"18" : isHour ? T.surface2 : T.surface3,
             borderBottom: isHour ? `2px solid ${block ? block.color+"44" : T.border}` : `1px solid ${T.border2}`,
             borderLeft: block ? `3px solid ${block.color}` : "none",
-            display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 8px",
+            display:"flex", flexDirection:"column", alignItems:"flex-end", justifyContent:"center",
+            padding:"0 4px", overflow:"hidden",
           }}>
-            <div style={{fontSize: isHour?11:9, fontWeight:isHour?700:400, color: block ? block.color : isHour?T.textMid:T.textDim}}>
+            <div style={{fontSize: isHour?11:9, fontWeight:isHour?700:400, color: block ? block.color : isHour?T.textMid:T.textDim, lineHeight:1.2}}>
               {time}
             </div>
+            {block && isHour && (
+              <div style={{fontSize:7, fontWeight:800, color:block.color, lineHeight:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:"100%"}}>
+                {block.label}
+              </div>
+            )}
           </div>
         );
       })}
@@ -1224,17 +1236,10 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
               gridRow: i+1,
               gridColumn: 1,
               borderBottom: time.endsWith(":00") ? `2px solid ${block ? block.color+"33" : T.border}` : `1px solid ${T.border2}`,
-              background: block ? block.color+"14" : time.endsWith(":00") ? T.surface : T.surface3+"88",
+              background: block ? block.color+"18" : time.endsWith(":00") ? T.surface : T.surface3+"88",
               opacity: past ? 0.45 : 1,
+              position:"relative",
             }}>
-              {block && time.endsWith(":00") && (
-                <div style={{
-                  position:"absolute", left:0, right:0,
-                  fontSize:9, fontWeight:800, color:block.color,
-                  padding:"1px 4px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                  pointerEvents:"none",
-                }}>{block.label}</div>
-              )}
             </div>
           );
         })}
