@@ -390,16 +390,25 @@ export default function App() {
   }
 
   function cancelMyBooking(practId, date, time) {
+    if (practId?.startsWith("strap_")) {
+      // Annuler strap: remettre player à vide
+      const kineId = practId.replace("strap_", "");
+      supabase.from("bookings").upsert({ pract_id:practId, date, time, player:"", locked:false, note:"", duration:30 }).then(()=>loadAll());
+      return;
+    }
     const b = getBooking(practId, date, time);
     if (b && !b.locked && b.player === playerName && !isPast(date)) unbook(practId, date, time);
   }
 
   function myBookings() {
     if (!playerName) return [];
-    return Object.entries(bookings)
+    const regular = Object.entries(bookings)
       .filter(([,v]) => v.player === playerName)
-      .map(([k,v]) => { const [pId,date,time] = k.split("|"); return { pId,date,time,locked:v.locked }; })
-      .sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
+      .map(([k,v]) => { const [pId,date,time] = k.split("|"); return { pId,date,time,locked:v.locked }; });
+    const straps = Object.entries(strapSlots)
+      .filter(([,v]) => v.player === playerName)
+      .map(([k,v]) => { const [pId,date,time] = k.split("|"); return { pId,date,time,locked:false }; });
+    return [...regular, ...straps].sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
   }
 
   // ── all past bookings (staff history) ────────────────────────────────────────
@@ -863,7 +872,9 @@ function PlayerView({
 }
 
 function BookingRow({ b, onCancel, past }) {
-  const p = PRACTITIONERS.find(x => x.id === b.pId);
+  const p = PRACTITIONERS.find(x => x.id === b.pId) ||
+    (b.pId?.startsWith("strap_") ? { id:b.pId, name:"Strap", color:STRAP_COLOR, initials:"🩹", role:"strap" } : null);
+  if (!p) return null;
   return (
     <div style={{...css.myBookingRow, opacity: past ? 0.6 : 1}}>
       <div style={{...css.practDot,background:p.color}} />
