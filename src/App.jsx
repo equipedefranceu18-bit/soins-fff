@@ -1150,8 +1150,11 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
       }
     }
     const visibleSlots = slots.filter(t => !covered.has(t));
-    // Inclure les times straps qui ne sont pas déjà dans visibleSlots
-    const allVisibleTimes = [...new Set([...visibleSlots, ...strapTimesForDay])].sort();
+    // Straps : afficher uniquement sur la première colonne kiné
+    const isFirstKine = kines.indexOf(p) === 0;
+    const allVisibleTimes = isFirstKine
+      ? [...new Set([...visibleSlots, ...strapTimesForDay])].sort()
+      : visibleSlots;
 
     return (
       <div style={{
@@ -1742,23 +1745,41 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     const hasStrap = isKine && strapSlots && strapSlots[`${date}|${time}`];
 
     // Cellule strap : fond orange uniforme, bloque l'ouverture classique
-    if (hasStrap && !booking) {
+    if (hasStrap) {
+      const strapData = strapSlots[`${date}|${time}`];
+      const strapPlayer = strapData?.player || "";
+      const isBooked = !!strapPlayer;
       return (
         <div key={`${k.id}-${time}`} style={{
           height: h, flexShrink: 0,
           borderBottom: isHour ? `2px solid ${STRAP_COLOR}55` : `1px solid ${STRAP_COLOR}33`,
           borderRight: `1px solid ${T.border}`,
           borderLeft: `3px solid ${STRAP_COLOR}`,
-          background: STRAP_COLOR+"22",
+          background: isBooked ? STRAP_COLOR+"44" : STRAP_COLOR+"22",
           display:"flex", alignItems:"center", justifyContent:"center",
           cursor: subMode === "straps" && !isPastDay ? "pointer" : "default",
           opacity: slotPast ? 0.45 : 1,
+          overflow:"hidden",
         }}
           onClick={() => subMode === "straps" && !isPastDay && onCellClick(k.id, date, time)}>
-          <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:1}}>
-            <span style={{fontSize:11}}>🩹</span>
-            <span style={{fontSize:7, fontWeight:800, color:STRAP_COLOR}}>30'</span>
-          </div>
+          {isBooked ? (
+            <div style={{width:"100%", padding:"0 4px", overflow:"hidden"}}>
+              <div style={{display:"flex", alignItems:"center", gap:2}}>
+                <span style={{fontSize:9}}>🩹</span>
+                <span style={{fontSize:10, fontWeight:800, color:STRAP_COLOR,
+                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                  filter:"brightness(0.65)"}}>
+                  {strapPlayer}
+                </span>
+              </div>
+              <div style={{fontSize:7, color:STRAP_COLOR, fontWeight:600}}>Strap 30'</div>
+            </div>
+          ) : (
+            <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:1}}>
+              <span style={{fontSize:11}}>🩹</span>
+              <span style={{fontSize:7, fontWeight:800, color:STRAP_COLOR}}>30'</span>
+            </div>
+          )}
         </div>
       );
     }
