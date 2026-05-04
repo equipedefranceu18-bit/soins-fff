@@ -215,7 +215,7 @@ export default function App() {
     if (s) {
       await supabase.from("bookings").delete().match({ pract_id: practId, date, time });
     } else {
-      await supabase.from("bookings").upsert({ pract_id: practId, date, time, player: "", locked: false, note: "", duration: 30 });
+      await supabase.from("bookings").upsert({ pract_id: practId, date, time, player: "", locked: false, note: "", duration: 30 }, {onConflict:"pract_id,date,time"});
     }
     await loadAll();
   }
@@ -348,7 +348,7 @@ export default function App() {
     const is30 = time.endsWith(":30") || isSplit(practId, date, time);
     await supabase.from("open_slots").upsert({pract_id:practId, date, time});
     await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
-    await supabase.from("bookings").upsert({pract_id:practId, date, time, player, locked:true, note:"", duration:is30?30:60});
+    await supabase.from("bookings").upsert({pract_id:practId, date, time, player, locked:true, note:"", duration:is30?30:60}, {onConflict:"pract_id,date,time"});
     await loadAll();
   }
 
@@ -370,7 +370,7 @@ export default function App() {
     await supabase.from("bookings").delete().match({pract_id:fromPractId, date, time});
     await supabase.from("open_slots").upsert({pract_id:toPractId, date, time});
     await supabase.from("closed_slots").delete().match({pract_id:toPractId, date, time});
-    await supabase.from("bookings").upsert({pract_id:toPractId, date, time, player:bk.player, locked:bk.locked, note:bk.note, duration:bk.duration});
+    await supabase.from("bookings").upsert({pract_id:toPractId, date, time, player:bk.player, locked:bk.locked, note:bk.note, duration:bk.duration}, {onConflict:"pract_id,date,time"});
     await loadAll();
   }
 
@@ -385,7 +385,7 @@ export default function App() {
       return;
     }
     const is30 = selectedTime.endsWith(":30") || isSplit(selectedPract, selectedDate, selectedTime);
-    await supabase.from("bookings").upsert({pract_id:selectedPract, date:selectedDate, time:selectedTime, player:playerName.trim(), locked:false, note:"", duration:is30?30:60});
+    await supabase.from("bookings").upsert({pract_id:selectedPract, date:selectedDate, time:selectedTime, player:playerName.trim(), locked:false, note:"", duration:is30?30:60}, {onConflict:"pract_id,date,time"});
     await loadAll();
     const p = PRACTITIONERS.find(x => x.id === selectedPract);
     if (!p) return; // sécurité
