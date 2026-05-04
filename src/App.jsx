@@ -986,7 +986,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
       }
     }
   }
-  // Inclure les times straps dans la grille pour qu'ils apparaissent
+  // Inclure les times straps pour que les lignes existent dans les colonnes kiné
   const strapTimesForDay = strapSlots ? Object.keys(strapSlots)
     .filter(k => k.startsWith(d+"|"))
     .map(k => k.split("|")[1]) : [];
@@ -1030,6 +1030,38 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
   function Btn({ p, time }) {
     const booked = !!getBooking(p.id, d, time);
     const open   = isSlotOpen(p.id, d, time);
+    const hasStrap = !!(strapSlots && strapSlots[`${d}|${time}`]);
+
+    // Si strap actif ET slot pas réservé par un joueur kiné → afficher bouton orange Strap
+    if (hasStrap && !booked && !open) {
+      const s = strapSlots[`${d}|${time}`];
+      const strapBooked = !!(s && s.player);
+      const strapAvail = isStrapAvailable(d, time);
+      const sel = selectedPract === STRAP_ID && selectedDate === d && selectedTime === time;
+      const rowIdx = timeToRow(time);
+      if (rowIdx < 0) return null;
+      return (
+        <div key={`${p.id}-strap-${time}`} style={{
+          gridRow: `${rowIdx + 1} / span 1`,
+          display:"flex", alignItems:"center", justifyContent:"center", padding:"2px",
+        }}>
+          <button style={{
+            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+            height:ROW-6, width:"100%", minWidth:42, padding:"0 4px",
+            background: strapBooked ? "#ebebeb" : sel ? STRAP_COLOR : STRAP_COLOR+"25",
+            border:`2px solid ${strapBooked ? "#ccc" : STRAP_COLOR}`,
+            borderRadius:10, cursor: strapBooked||!strapAvail ? "not-allowed" : "pointer",
+            transition:"all 0.15s",
+          }}
+            onClick={() => strapAvail && !strapBooked && onSlotClick(STRAP_ID, d, time)}
+            title={strapBooked ? "Strap complet" : !strapAvail ? "Pas encore réservable" : "Strap — 30 min"}>
+            <span style={{fontSize:9,fontWeight:800,color:strapBooked?"#bbb":sel?"#fff":STRAP_COLOR}}>🩹 Strap</span>
+            <span style={{fontSize:7,color:strapBooked?"#ccc":sel?"rgba(255,255,255,0.85)":STRAP_COLOR+"99",fontWeight:600}}>30'</span>
+          </button>
+        </div>
+      );
+    }
+
     if (!booked && !open) return null;
 
     const avail   = isAvailable(p.id, d, time);
@@ -1118,6 +1150,8 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
       }
     }
     const visibleSlots = slots.filter(t => !covered.has(t));
+    // Inclure les times straps qui ne sont pas déjà dans visibleSlots
+    const allVisibleTimes = [...new Set([...visibleSlots, ...strapTimesForDay])].sort();
 
     return (
       <div style={{
@@ -1136,8 +1170,8 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             opacity: past ? 0.45 : 1,
           }} />
         ))}
-        {/* Boutons de slots */}
-        {visibleSlots.map(time => (
+        {/* Boutons de slots (kinés + straps) */}
+        {allVisibleTimes.map(time => (
           <Btn key={time} p={p} time={time} />
         ))}
       </div>
@@ -1181,57 +1215,6 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     );
   }
 
-  const hasStraps = strapTimesForDay.length > 0;
-
-  // Colonne Strap : couleur orange unique, indépendante du kiné
-  function StrapColumn() {
-    return (
-      <div style={{
-        display:"grid", gridTemplateRows: gridRows,
-        flex:1, minWidth:60, background: STRAP_COLOR+"08",
-      }}>
-        {/* Fond des lignes */}
-        {baseTimes.map((time, i) => (
-          <div key={`bg-s-${time}`} style={{
-            gridRow: i+1, gridColumn:1,
-            borderBottom: time.endsWith(":00") ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
-            background: time.endsWith(":00") ? STRAP_COLOR+"0a" : STRAP_COLOR+"06",
-          }} />
-        ))}
-        {/* Boutons straps */}
-        {strapTimesForDay.map(time => {
-          const rowIdx = baseTimes.indexOf(time);
-          if (rowIdx < 0) return null;
-          const s = strapSlots[`${d}|${time}`];
-          const booked = !!(s && s.player);
-          const avail = isStrapAvailable(d, time);
-          const sel = selectedPract === STRAP_ID && selectedDate === d && selectedTime === time;
-          let bg, border, cursor, label;
-          if (booked)       { bg="#ebebeb"; border="#ccc"; cursor="not-allowed"; label="Complet"; }
-          else if (!avail)  { bg="#f5f5f5"; border="#ddd"; cursor="not-allowed"; label="Strap"; }
-          else if (sel)     { bg=STRAP_COLOR; border=STRAP_COLOR; cursor="pointer"; label="Strap"; }
-          else              { bg=STRAP_COLOR+"25"; border=STRAP_COLOR; cursor="pointer"; label="Strap"; }
-          return (
-            <div key={`strap-${time}`} style={{gridRow:rowIdx+1, display:"flex", alignItems:"center", justifyContent:"center", padding:"2px"}}>
-              <button style={{
-                width:"100%", height:ROW-6, borderRadius:10,
-                background:bg, border:`2px solid ${border}`,
-                cursor, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:1,
-                boxShadow: sel ? `0 2px 10px ${STRAP_COLOR}55` : "none", transition:"all 0.15s",
-              }}
-                onClick={() => avail && !booked && onSlotClick(STRAP_ID, d, time)}
-                title={booked ? "Complet" : !avail ? "Pas encore réservable" : "Créneau Strap — 30 min"}>
-                <span style={{fontSize:10, fontWeight:800, color: booked?"#bbb" : sel?"#fff" : STRAP_COLOR}}>🩹</span>
-                <span style={{fontSize:7, fontWeight:700, color: booked?"#ccc" : sel?"rgba(255,255,255,0.85)" : STRAP_COLOR+"cc"}}>{label}</span>
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  const SEP2 = `2px solid ${STRAP_COLOR}44`;
   const header = (
     <div style={{display:"flex", height:48, background:T.surface3, borderBottom:`2px solid ${T.border}`}}>
       <div style={{width:64, flexShrink:0, borderRight:`1px solid ${T.border}`}} />
@@ -1240,18 +1223,10 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
         <span style={{fontSize:12, fontWeight:700, color:T.textMid}}>💆 Kinésithérapie</span>
         <span style={{fontSize:10, color:T.textDim}}>{kines.map(k=>k.name).join(" · ")}</span>
       </div>
-      <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-        background:"#f5eeff", borderRight: hasStraps ? SEP2 : "none"}}>
+      <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"#f5eeff"}}>
         <span style={{fontSize:12, fontWeight:700, color:"#9c27b0"}}>🦴 Ostéo</span>
         <span style={{fontSize:10, color:T.textDim}}>Jean-Yves</span>
       </div>
-      {hasStraps && (
-        <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-          background:STRAP_COLOR+"12"}}>
-          <span style={{fontSize:14}}>🩹</span>
-          <span style={{fontSize:11, fontWeight:800, color:STRAP_COLOR}}>Strap</span>
-        </div>
-      )}
     </div>
   );
 
@@ -1264,14 +1239,9 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
           <div style={{flex:4, display:"flex", borderRight:SEP}}>
             {kines.map(p => <KineColumn key={p.id} p={p} />)}
           </div>
-          <div style={{flex:1, display:"flex", borderRight: hasStraps ? SEP2 : "none"}}>
+          <div style={{flex:1, display:"flex"}}>
             {osteos.map(p => <OsteoColumn key={p.id} p={p} />)}
           </div>
-          {hasStraps && (
-            <div style={{flex:1, display:"flex"}}>
-              <StrapColumn />
-            </div>
-          )}
         </div>
       </div>
       <div style={css.practLegend}>
@@ -1281,11 +1251,9 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             {p.role==="ostéo"&&<span style={{fontSize:10,color:T.textDim,marginLeft:2}}>(ostéo)</span>}
           </div>
         ))}
-        {hasStraps && (
-          <div style={css.legendItem}>
-            <div style={{...css.practDot, background:STRAP_COLOR}}/>Strap (30')
-          </div>
-        )}
+        <div style={css.legendItem}>
+          <div style={{...css.practDot, background:STRAP_COLOR}}/>Strap (30')
+        </div>
       </div>
     </div>
   );
@@ -1605,7 +1573,9 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             strapSlots={strapSlots}
             onCellClick={(practId, date, time, duration) => {
               if (dvSubMode === "straps") {
-                toggleStrap(date, time);
+                // Straps uniquement sur les kinés, pas sur JY (ostéo)
+                const p = practitioners.find(x => x.id === practId);
+                if (p && p.role === "kiné") toggleStrap(date, time);
                 return;
               }
               const booking = getBooking(practId, date, time);
