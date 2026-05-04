@@ -124,7 +124,7 @@ export default function App() {
         if (x.pract_id && x.pract_id.startsWith(STRAP_ID+"_")) {
           stm[`${x.pract_id}|${x.date}|${x.time}`] = { player: x.player || "", locked: x.locked };
         } else {
-          bm[`${x.pract_id}|${x.date}|${x.time}`] = {player:x.player,locked:x.locked,note:x.note||"",duration:x.duration||60};
+          bm[`${x.pract_id}|${x.date}|${x.time}`] = {player:x.player,locked:x.locked,note:x.note||"",duration:x.duration||60,cancelled:x.cancelled||false};
         }
       });
       const sb = await supabase.from("schedule_blocks").select("*");
@@ -407,21 +407,24 @@ export default function App() {
     setSelectedPract(null); setSelectedDate(null); setSelectedTime(null);
   }
 
-  function cancelMyBooking(practId, date, time) {
+  async function cancelMyBooking(practId, date, time) {
     if (practId?.startsWith("strap_")) {
-      // Annuler strap: remettre player à vide
-      const kineId = practId.replace("strap_", "");
-      supabase.from("bookings").upsert({ pract_id:practId, date, time, player:"", locked:false, note:"", duration:30 }).then(()=>loadAll());
+      await supabase.from("bookings").update({ player:"", locked:false }).eq("pract_id",practId).eq("date",date).eq("time",time);
+      await loadAll();
       return;
     }
     const b = getBooking(practId, date, time);
-    if (b && !b.locked && b.player === playerName && !isPast(date)) unbook(practId, date, time);
+    if (b && !b.locked && b.player === playerName && !isPast(date)) {
+      // Marquer comme annulé (garde la trace) plutôt que supprimer
+      await supabase.from("bookings").update({ cancelled: true }).eq("pract_id",practId).eq("date",date).eq("time",time);
+      await loadAll();
+    }
   }
 
   function myBookings() {
     if (!playerName) return [];
     const regular = Object.entries(bookings)
-      .filter(([,v]) => v.player === playerName)
+      .filter(([,v]) => v.player === playerName && !v.cancelled)
       .map(([k,v]) => { const [pId,date,time] = k.split("|"); return { pId,date,time,locked:v.locked }; });
     const straps = Object.entries(strapSlots)
       .filter(([,v]) => v.player === playerName)
@@ -1083,7 +1086,8 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
 
   // Bouton individuel — positionné en grid row
   function Btn({ p, time }) {
-    const booked = !!getBooking(p.id, d, time);
+    const _bk = getBooking(p.id, d, time);
+    const booked = !!_bk && !_bk.cancelled;
     const open   = isSlotOpen(p.id, d, time);
     // Strap pour ce kiné spécifique
     const strapKey = `${STRAP_ID}_${p.id}|${d}|${time}`;
@@ -1585,12 +1589,13 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
                     (b.pId?.startsWith("strap_") ? {id:b.pId,name:"Strap",color:STRAP_COLOR,initials:"🩹"} : null);
                   if (!p) return null;
                   return (
-                    <div key={i} style={css.histRow}>
-                      <div style={{...css.practDot,background:p.color,flexShrink:0}} />
+                    <div key={i} style={{...css.histRow, opacity: b.cancelled ? 0.6 : 1, background: b.cancelled ? "#fff5f5" : "transparent"}}>
+                      <div style={{...css.practDot,background:b.cancelled?"#ccc":p.color,flexShrink:0}} />
                       <div style={{flex:1}}>
                         <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <strong>{b.player}</strong>
-                          {b.locked && <span style={{fontSize:10,opacity:0.4}}>🔒 staff</span>}
+                          <strong style={{textDecoration:b.cancelled?"line-through":"none"}}>{b.player}</strong>
+                          {b.cancelled && <span style={{fontSize:10,color:"#e53935",fontWeight:700}}>❌ Annulé</span>}
+                          {b.locked && !b.cancelled && <span style={{fontSize:10,opacity:0.4}}>🔒 staff</span>}
                         </div>
                         <div style={{fontSize:12,color:"#8b949e"}}>
                           {fmtLong(b.date)} · {b.time} · <span style={{color:p.color}}>{p.name}</span>
@@ -2018,7 +2023,18 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       );
     }
 
-    if (booking) {
+    if (booking && booking.cancelled) {
+      bg = "#f5f5f5"; bl = "3px solid #ccc";
+      indicator = (
+        <div style={{width:"100%", padding:"0 4px", overflow:"hidden"}}>
+          <div style={{fontSize:10, fontWeight:700, color:"#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+            ❌ {booking.player}
+          </div>
+          <div style={{fontSize:8, color:"#bbb"}}>Annulé</div>
+        </div>
+      );
+      // Show unbook button for staff
+    } else if (booking) {
       bg = k.color+"66"; bl = `3px solid ${k.color}`;
       indicator = (
         <div style={{width:"100%", overflow:"hidden", padding:"0 4px"}}>
