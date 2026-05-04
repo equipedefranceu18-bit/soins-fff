@@ -1575,6 +1575,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             getSlotDuration={getSlotDuration}
             toggleOpen={toggleOpen}
             strapSlots={strapSlots}
+            toggleStrap={toggleStrap}
             onCellClick={(practId, date, time, duration) => {
               if (dvSubMode === "straps") {
                 // Straps uniquement sur les kinés, pas sur JY (ostéo)
@@ -1621,7 +1622,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
 // The time axis shows base 1h slots. Split kinés show 2×30' within their H1 space.
 // Other kinés keep H1 — no forced split bleeding across columns.
 function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpen, isRecurring,
-  getSlotsForContext, isSplit, onCellClick, unbook, toggleOpen, getSlotDuration, strapSlots }) {
+  getSlotsForContext, isSplit, onCellClick, unbook, toggleOpen, getSlotDuration, strapSlots, toggleStrap }) {
 
   const isPastDay = isPast(date);
   const H30 = 28, HEADER = 48;
@@ -1773,7 +1774,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
                   {strapPlayer}
                 </span>
                 {!isPastDay && (
-                  <button style={css.deleteBtn} onClick={e=>{e.stopPropagation();onCellClick(k.id,date,time);}}>✕</button>
+                  <button style={css.deleteBtn} onClick={e=>{e.stopPropagation();toggleStrap(date,time);}}>✕</button>
                 )}
               </div>
               <div style={{fontSize:7, color:STRAP_COLOR, fontWeight:600}}>Strap 30'</div>
