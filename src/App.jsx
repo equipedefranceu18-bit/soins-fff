@@ -225,7 +225,7 @@ export default function App() {
     const key = `${practId}|${date}|${time}`;
     const s = strapSlots[key];
     if (!s || s.player) return;
-    await supabase.from("bookings").update({ player, locked: false }).match({ pract_id: practId, date, time });
+    await supabase.from("bookings").upsert({ pract_id: practId, date, time, player, locked: false, note: "", duration: 30 });
     await loadAll();
   }
 
@@ -1055,7 +1055,8 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
       const s = strapSlots[strapKey];
       const strapBooked = !!(s && s.player);
       const strapAvail = isStrapAvailable(p.id, d, time);
-      const sel = selectedPract === STRAP_ID && selectedDate === d && selectedTime === time;
+      const strapPId = STRAP_ID + "_" + p.id;
+      const sel = selectedPract === strapPId && selectedDate === d && selectedTime === time;
       const rowIdx = timeToRow(time);
       if (rowIdx < 0) return null;
       return (
