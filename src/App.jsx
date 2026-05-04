@@ -2542,7 +2542,7 @@ const css = {
   practTabs: { display:"flex", gap:8, overflowX:"auto", padding:"16px 20px" },
   practTabBtn: { display:"flex", alignItems:"center", gap:8, background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:"10px 14px", cursor:"pointer", color:T.textDim, fontSize:13, whiteSpace:"nowrap", transition:"all 0.2s", boxShadow:"0 1px 4px rgba(0,35,149,0.08)" },
 
-  staffActions: { display:"flex", gap:6, padding:"0 20px 8px", flexWrap:"wrap" },
+  staffActions: { display:"flex", gap:6, padding:"0 20px 8px", flexWrap:"wrap", overflowX:"auto" },
   staffActBtn: { background:T.surface, border:`1px solid ${T.border}`, borderRadius:10, color:T.textMid, cursor:"pointer", padding:"7px 12px", fontSize:12, fontWeight:600, transition:"all 0.15s", boxShadow:"0 1px 3px rgba(0,35,149,0.08)" },
   staffActBtnHistory: { background:T.surface, border:`1px solid ${T.border}`, color:T.textDim, borderRadius:8, padding:"6px 12px", fontSize:13 },
 
