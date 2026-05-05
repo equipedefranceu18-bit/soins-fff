@@ -302,7 +302,11 @@ export default function App() {
     return !!recurring[recurKey(practId, dowOf(date), time)];
   }
   function getBooking(practId, date, time) {
-    return bookings[slotKey(practId, date, time)] || null;
+    const b = bookings[slotKey(practId, date, time)];
+    if (!b) return null;
+    // Booking annulé avec player vide = créneau libre
+    if (b.cancelled && !b.player) return null;
+    return b;
   }
   function isAvailable(practId, date, time) {
     if (!isSlotOpen(practId, date, time)) return false;
