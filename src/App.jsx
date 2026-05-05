@@ -665,7 +665,7 @@ function PlayerView({
   const practitioners = [...kines, ...osteos];
   const [showMy, setShowMy] = useState(false);
   const [activeDay, setActiveDay] = useState(todayStr());
-  const mb = myBookings();
+  const mb = myBookings().filter(b => !bookings[`${b.pId}|${b.date}|${b.time}`]?.cancelled);
   const future = mb.filter(b => b.date >= todayStr());
   const past_mb = mb.filter(b => b.date < todayStr());
 
@@ -713,7 +713,7 @@ function PlayerView({
     if (!isAvailable(pId, date, time)) return;
 
     // Vérifier si le joueur a déjà un RDV ce jour-là
-    const existing = mb.find(b => b.date === date);
+    const existing = mb.find(b => b.date === date && !bookings[`${b.pId}|${b.date}|${b.time}`]?.cancelled);
     if (existing && !(existing.date === selectedDate && existing.pId === selectedPract)) {
       const existPract = PRACTITIONERS.find(x => x.id === existing.pId);
       setDoubleBookingAlert({ date, existingPract: existPract, existingTime: existing.time });
@@ -1057,7 +1057,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
   function playerHasBookingAt(time) {
     if (!playerName) return false;
     return Object.entries(bookings).some(([k,v]) =>
-      v.player === playerName && k.split("|")[1] === d && k.split("|")[2] === time
+      v.player === playerName && !v.cancelled && k.split("|")[1] === d && k.split("|")[2] === time
     );
   }
 
