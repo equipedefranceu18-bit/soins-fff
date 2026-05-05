@@ -1969,33 +1969,38 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     // Vérifier si cette ligne :30 est couverte par un slot 1h sur la ligne :00 précédente
     const coveringTime = getCoveringSlot(k, time);
     if (coveringTime) {
-      // Cette cellule est la 2e moitié d'un slot 1h — afficher le même fond, sans indicateur
+      // Cette cellule est la 2e moitié d'un slot 1h — afficher le même fond que la 1re moitié
       const covBooking = getBooking(k.id, date, coveringTime);
       const covOpen = isSlotOpen(k.id, date, coveringTime);
       const covRec = isRecurring(k.id, date, coveringTime);
       const covPast = isSlotPast(coveringTime);
-      let bg = T.surface3+"88";
-      let bl = "3px solid transparent";
-      const covPastEmpty = covPast && (!covBooking || (covBooking.cancelled && !covBooking.player));
-      // Strap covering check
+      const covHasActiveBooking = covBooking && !covBooking.cancelled;
+      // Strap covering
       const covStrapKey = `${STRAP_ID}_${k.id}|${date}|${coveringTime}`;
       const covHasStrap = k.role === "kiné" && strapSlots && strapSlots[covStrapKey];
-      const covStrapPlayer = covHasStrap ? (strapSlots[covStrapKey]?.player || "") : "";
-      const covStrapBooked = !!covStrapPlayer;
-      if (covPastEmpty && !covStrapBooked) { bg = "#ccd0e0"; bl = "3px solid transparent"; }
-      else if (covHasStrap && !covPast) {
+      const covStrapBooked = covHasStrap && !!(strapSlots[covStrapKey]?.player);
+      let bg, bl;
+      if (covPast && !covHasActiveBooking && !(covHasStrap && covStrapBooked)) {
+        // Passé sans réservation active → gris uniforme
+        bg = "#ccd0e0"; bl = "3px solid transparent";
+      } else if (covHasActiveBooking) {
+        bg = k.color+"44"; bl = `3px solid ${k.color}`;
+      } else if (covHasStrap) {
         bg = covStrapBooked ? STRAP_COLOR+"44" : STRAP_COLOR+"22";
         bl = `3px solid ${STRAP_COLOR}`;
-      }
-      else if (covBooking && !covBooking.cancelled) { bg = k.color+"44"; bl = `3px solid ${k.color}`; }
-      else if (covOpen && !covPast) {
+      } else if (covOpen) {
         bg = covRec ? k.color+"14" : k.color+"0c";
         bl = covRec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
-      } else if (covPast) { bg = "#ccd0e0"; bl = "3px solid transparent"; }
+      } else {
+        // Fermé (ni ouvert ni réservé) — passé ou non → gris si passé, neutre sinon
+        bg = covPast ? "#ccd0e0" : T.surface3+"88";
+        bl = "3px solid transparent";
+      }
+      const covBorderPast = covPast && !covHasActiveBooking && !(covHasStrap && covStrapBooked);
       return (
         <div key={`${k.id}-${time}`} style={{
           height: h, flexShrink: 0,
-          borderBottom: `1px solid ${(covPastEmpty || (covPast && !covBooking?.player)) ? "#b8bdd0" : T.border2}`,
+          borderBottom: `1px solid ${covBorderPast ? "#b8bdd0" : T.border2}`,
           borderRight: `1px solid ${T.border}`,
           background: bg, borderLeft: bl,
           overflow: "hidden",
