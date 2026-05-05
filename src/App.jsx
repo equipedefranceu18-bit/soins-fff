@@ -417,7 +417,9 @@ export default function App() {
     if (b && !b.locked && b.player === playerName && !isPast(date)) {
       // Marquer comme annulé (garde la trace) plutôt que supprimer
       // Garder la trace (cancelled=true) mais libérer le créneau (player=null)
-      await supabase.from("bookings").update({ cancelled: true, player: "" }).eq("pract_id",practId).eq("date",date).eq("time",time);
+      const bk = getBooking(practId, date, time);
+      const cancelledPlayer = bk?.player || playerName;
+      await supabase.from("bookings").update({ cancelled: true, player: "", note: (bk?.note||"") + (bk?.note ? " | " : "") + "Annulé par: "+cancelledPlayer }).eq("pract_id",practId).eq("date",date).eq("time",time);
       await loadAll();
     }
   }
@@ -437,7 +439,11 @@ export default function App() {
   function getPastBookings() {
     const today = todayStr();
     return Object.entries(bookings)
-      .filter(([k]) => { const date = k.split("|")[1]; return date < today; })
+      .filter(([k,v]) => {
+        const date = k.split("|")[1];
+        return date < today || v.cancelled; // inclure les annulations futures
+      })
+      .filter(([,v]) => v.player || v.cancelled) // exclure les lignes vides non annulées
       .map(([k,v]) => { const [pId,date,time] = k.split("|"); return { pId,date,time,...v }; })
       .sort((a,b) => (b.date+b.time).localeCompare(a.date+a.time)); // most recent first
   }
