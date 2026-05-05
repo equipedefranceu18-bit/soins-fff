@@ -441,13 +441,8 @@ export default function App() {
 
   // ── all past bookings (staff history) ────────────────────────────────────────
   function getPastBookings() {
-    const today = todayStr();
     return Object.entries(bookings)
-      .filter(([k,v]) => {
-        const date = k.split("|")[1];
-        return date < today || v.cancelled; // inclure les annulations futures
-      })
-      .filter(([,v]) => v.player || v.cancelled) // exclure les lignes vides non annulées
+      .filter(([,v]) => v.player || v.cancelled) // exclure les lignes vides
       .map(([k,v]) => { const [pId,date,time] = k.split("|"); return { pId,date,time,...v }; })
       .sort((a,b) => (b.date+b.time).localeCompare(a.date+a.time)); // most recent first
   }
