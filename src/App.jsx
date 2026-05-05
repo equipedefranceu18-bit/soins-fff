@@ -2025,7 +2025,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           background: isBooked ? STRAP_COLOR+"44" : STRAP_COLOR+"22",
           display:"flex", alignItems:"center", justifyContent:"center",
           cursor: !isPastDay && subMode === "straps" ? "pointer" : "default",
-          opacity: slotPast ? 0.45 : 1,
+          opacity: slotPast ? 0.35 : 1,
           overflow:"hidden",
         }}
           onClick={() => !isPastDay && subMode === "straps" && !isBooked && onCellClick(k.id, date, time)}>
@@ -2064,10 +2064,10 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       return (
         <div key={`${k.id}-${time}`} style={{
           ...commonStyle,
-          background: "#f0f0f0",
+          background: isHour ? "#d8dce8" : "#ccd0e0",
+          borderBottom: isHour ? `1px solid #b8bdd0` : `1px solid #c5c9da`,
           borderLeft: "3px solid transparent",
           cursor: "default",
-          opacity: 0.45,
           display:"flex", alignItems:"center", justifyContent:"center",
         }} />
       );
@@ -2165,19 +2165,24 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         {/* Axe temps — créneaux de 30' */}
         <div style={{width:64, flexShrink:0, display:"flex", flexDirection:"column"}}>
           <div style={{height:HEADER, background:T.surface3, borderBottom:`2px solid ${T.border}`, borderRight:`1px solid ${T.border}`}} />
-          {displayTimes.map(time => (
+          {displayTimes.map(time => {
+            const axisPast = isSlotPast(time);
+            return (
             <div key={`axis-${time}`} style={{
               height: H30, flexShrink:0,
-              background: time.endsWith(":00") ? T.surface2 : T.surface3,
-              borderBottom: time.endsWith(":00") ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
+              background: axisPast
+                ? (time.endsWith(":00") ? "#c8ccdc" : "#bec2d4")
+                : (time.endsWith(":00") ? T.surface2 : T.surface3),
+              borderBottom: time.endsWith(":00") ? `2px solid ${axisPast ? "#adb2c8" : T.border}` : `1px solid ${axisPast ? "#b8bdd0" : T.border2}`,
               borderRight:`1px solid ${T.border}`,
               display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 8px",
             }}>
               <div style={{textAlign:"right"}}>
-                <div style={{fontSize: time.endsWith(":00") ? 11 : 9, fontWeight: time.endsWith(":00") ? 700 : 400, color: time.endsWith(":00") ? T.textMid : T.textDim}}>{time}</div>
+                <div style={{fontSize: time.endsWith(":00") ? 11 : 9, fontWeight: time.endsWith(":00") ? 700 : 400, color: axisPast ? "#8890aa" : (time.endsWith(":00") ? T.textMid : T.textDim)}}>{time}</div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Une colonne par kiné */}
