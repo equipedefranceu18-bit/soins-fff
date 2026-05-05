@@ -2102,7 +2102,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   }
 
   return (
-    <div style={{...css.calendarWrap, margin:"0 20px", overflowX:"auto", position:"relative"}}>
+    <div style={{...css.calendarWrap, margin:"0 20px", overflowX:"auto"}}>
       {/* Onglets durée */}
       <div style={{display:"flex", gap:8, padding:"10px 0 8px", justifyContent:"center"}}>
         <button style={{
@@ -2123,7 +2123,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         </button>
       </div>
 
-      <div style={{display:"flex", minWidth:500}}>
+      <div style={{display:"flex", minWidth:500, position:"relative"}}>
         {/* Axe temps — créneaux de 30' */}
         <div style={{width:64, flexShrink:0, display:"flex", flexDirection:"column"}}>
           <div style={{height:HEADER, background:T.surface3, borderBottom:`2px solid ${T.border}`, borderRight:`1px solid ${T.border}`}} />
