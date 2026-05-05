@@ -2165,10 +2165,10 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         ))}
         {/* Planning overlay pleine largeur */}
         {(scheduleBlocks||[]).filter(b => b.date === date).map(block => {
-          const blockSlots = slots.filter(t => t >= block.time_start.slice(0,5) && t < block.time_end.slice(0,5));
+          const blockSlots = BASE_SLOTS.filter(t => t >= block.time_start.slice(0,5) && t < block.time_end.slice(0,5));
           if (blockSlots.length === 0) return null;
-          const firstIdx = slots.indexOf(blockSlots[0]);
-          const lastIdx = slots.indexOf(blockSlots[blockSlots.length-1]);
+          const firstIdx = BASE_SLOTS.indexOf(blockSlots[0]);
+          const lastIdx = BASE_SLOTS.indexOf(blockSlots[blockSlots.length-1]);
           const top = HEADER + firstIdx * ROW;
           const height = (lastIdx - firstIdx + 1) * ROW;
           return (
