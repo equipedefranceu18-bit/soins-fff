@@ -124,7 +124,7 @@ export default function App() {
         if (x.pract_id && x.pract_id.startsWith(STRAP_ID+"_")) {
           stm[`${x.pract_id}|${x.date}|${x.time}`] = { player: x.player || "", locked: x.locked };
         } else {
-          bm[`${x.pract_id}|${x.date}|${x.time}`] = {player:x.player,locked:x.locked,note:x.note||"",duration:x.duration||60,cancelled:x.cancelled||false,booked_at:x.booked_at||null,cancelled_at:x.cancelled_at||null};
+          bm[`${x.pract_id}|${x.date}|${x.time}`] = {player:x.player,locked:x.locked,note:x.note||"",duration:x.duration||60,cancelled:x.cancelled||false,booked_at:x.booked_at||null,cancelled_at:x.cancelled_at||null,cancelled_player:x.cancelled_player||""};
         }
       });
       const sb = await supabase.from("schedule_blocks").select("*");
@@ -423,7 +423,7 @@ export default function App() {
       // Garder la trace (cancelled=true) mais libérer le créneau (player=null)
       const bk = getBooking(practId, date, time);
       const cancelledPlayer = bk?.player || playerName;
-      await supabase.from("bookings").update({ cancelled: true, player: "", cancelled_at: new Date().toISOString(), note: (bk?.note||"") + (bk?.note ? " | " : "") + "Annulé par: "+cancelledPlayer }).eq("pract_id",practId).eq("date",date).eq("time",time);
+      await supabase.from("bookings").update({ cancelled: true, player: "", cancelled_player: cancelledPlayer, cancelled_at: new Date().toISOString() }).eq("pract_id",practId).eq("date",date).eq("time",time);
       await loadAll();
     }
   }
@@ -442,9 +442,14 @@ export default function App() {
   // ── all past bookings (staff history) ────────────────────────────────────────
   function getPastBookings() {
     return Object.entries(bookings)
-      .filter(([,v]) => v.player || v.cancelled) // exclure les lignes vides
+      .filter(([,v]) => v.player || v.cancelled || v.booked_at) // inclure tout ce qui a été réservé
       .map(([k,v]) => { const [pId,date,time] = k.split("|"); return { pId,date,time,...v }; })
-      .sort((a,b) => (b.booked_at||"").localeCompare(a.booked_at||"")); // most recently booked first
+      .sort((a,b) => {
+        // Trier par cancelled_at si annulé, sinon par booked_at
+        const dateA = a.cancelled_at || a.booked_at || "";
+        const dateB = b.cancelled_at || b.booked_at || "";
+        return dateB.localeCompare(dateA);
+      });
   }
 
   // ─── render ───────────────────────────────────────────────────────────────────
@@ -1624,19 +1629,19 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
                       <div style={{...css.practDot,background:b.cancelled?"#ccc":p.color,flexShrink:0}} />
                       <div style={{flex:1}}>
                         <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <strong style={{textDecoration:b.cancelled?"line-through":"none"}}>{b.player}</strong>
+                          <strong style={{textDecoration:b.cancelled?"line-through":"none"}}>
+                            {b.player || b.cancelled_player || "—"}
+                          </strong>
                           {b.cancelled && <span style={{fontSize:10,color:"#e53935",fontWeight:700}}>❌ Annulé</span>}
                           {b.locked && !b.cancelled && <span style={{fontSize:10,opacity:0.4}}>🔒 staff</span>}
                         </div>
                         <div style={{fontSize:12,color:"#8b949e"}}>
                           {fmtLong(b.date)} · {b.time} · <span style={{color:p.color}}>{p.name}</span>
                         </div>
-                        {b.booked_at && (
-                          <div style={{fontSize:10,color:"#aaa",marginTop:2}}>
-                            📅 Réservé le {new Date(b.booked_at).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}
-                            {b.cancelled_at && <span> · ❌ Annulé le {new Date(b.cancelled_at).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>}
-                          </div>
-                        )}
+                        <div style={{fontSize:10,color:"#aaa",marginTop:2}}>
+                          {b.booked_at && <span>📅 Réservé le {new Date(b.booked_at).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>}
+                          {b.cancelled_at && <span style={{marginLeft:6}}>· ❌ Annulé le {new Date(b.cancelled_at).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>}
+                        </div>
                         {b.note && (
                           <div style={{fontSize:12,color:"#c9d1d9",marginTop:4,padding:"4px 8px",background:"#21262d",borderRadius:6,borderLeft:`2px solid ${p.color}55`}}>
                             💬 {noteToDisplay(b.note)}
