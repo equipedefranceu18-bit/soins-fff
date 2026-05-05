@@ -2169,8 +2169,8 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           if (blockSlots.length === 0) return null;
           const firstIdx = BASE_SLOTS.indexOf(blockSlots[0]);
           const lastIdx = BASE_SLOTS.indexOf(blockSlots[blockSlots.length-1]);
-          const top = HEADER + firstIdx * ROW;
-          const height = (lastIdx - firstIdx + 1) * ROW;
+          const top = HEADER + firstIdx * H30;
+          const height = (lastIdx - firstIdx + 1) * H30;
           return (
             <div key={block.id} style={{
               position:"absolute",
