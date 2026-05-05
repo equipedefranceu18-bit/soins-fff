@@ -1543,7 +1543,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
 
       {/* Stats modal */}
       {showStats && (
-        <StatsModal onClose={()=>setShowStats(false)} bookings={bookings} practitioners={practitioners} />
+        <StatsModal onClose={()=>setShowStats(false)} bookings={bookings} practitioners={practitioners} bookingHistory={bookingHistory} strapSlots={strapSlots} />
       )}
 
       {/* Note modal */}
@@ -2439,10 +2439,12 @@ function NoteModal({ note, player, date, time, pract, onSave, onClose }) {
 }
 
 // ─── Stats Modal ──────────────────────────────────────────────────────────────
-function StatsModal({ onClose, bookings, practitioners }) {
+function StatsModal({ onClose, bookings, practitioners, bookingHistory, strapSlots }) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo,   setDateTo]   = useState("");
   const [practFilter, setPractFilter] = useState("");
+  const [statsTab, setStatsTab] = useState("soins"); // "soins" | "joueurs"
+  const [playerSort, setPlayerSort] = useState("total"); // "total" | "name"
 
   const allBookings = Object.entries(bookings).map(([k,v]) => {
     const [pId, date, time] = k.split("|");
@@ -2476,11 +2478,23 @@ function StatsModal({ onClose, bookings, practitioners }) {
   return (
     <div style={css.modalOverlay} onClick={onClose}>
       <div style={{...css.modalCard, maxWidth:520, maxHeight:"92vh", overflowY:"auto", padding:20}} onClick={e=>e.stopPropagation()}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
           <h3 style={{margin:0,fontSize:17,color:T.navy,fontWeight:800}}>📊 Statistiques des soins</h3>
           <button style={{...css.backBtn,background:T.surface2,color:T.textDim,border:`1px solid ${T.border}`}} onClick={onClose}>✕</button>
         </div>
+        {/* Onglets */}
+        <div style={{display:"flex",gap:6,marginBottom:16}}>
+          {[{key:"soins",label:"🩺 Soins & zones"},{key:"joueurs",label:"👤 Par joueur"}].map(t=>(
+            <button key={t.key} onClick={()=>setStatsTab(t.key)} style={{
+              flex:1, padding:"8px 12px", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer",
+              background: statsTab===t.key ? T.navy : T.surface2,
+              border: `1px solid ${statsTab===t.key ? T.navy : T.border}`,
+              color: statsTab===t.key ? "#fff" : T.textMid,
+            }}>{t.label}</button>
+          ))}
+        </div>
 
+        {statsTab === "soins" && (<>
         {/* Filtres */}
         <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
           <div style={{flex:1,minWidth:120}}>
@@ -2548,6 +2562,76 @@ function StatsModal({ onClose, bookings, practitioners }) {
             );
           })}
         </div>
+        </>)}
+
+        {statsTab === "joueurs" && (() => {
+          // Collecter soins classiques (non annulés) depuis bookingHistory
+          const playerData = {};
+          const today = new Date().toISOString().split("T")[0];
+          // Soins classiques passés
+          for (const b of (bookingHistory||[])) {
+            if (b.cancelled) continue;
+            if (b.date >= today) continue; // seulement passés
+            const name = b.player || b.cancelled_player;
+            if (!name) continue;
+            if (!playerData[name]) playerData[name] = { soins: 0, straps: 0 };
+            playerData[name].soins++;
+          }
+          // Straps passés (strapSlots avec un player)
+          for (const [k, v] of Object.entries(strapSlots||{})) {
+            if (!v.player) continue;
+            const [, date] = k.split("|");
+            if (date >= today) continue;
+            if (!playerData[v.player]) playerData[v.player] = { soins: 0, straps: 0 };
+            playerData[v.player].straps++;
+          }
+          const rows = Object.entries(playerData).map(([name,d])=>({name,...d,total:d.soins+d.straps}));
+          if (playerSort === "total") rows.sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name));
+          else rows.sort((a,b)=>a.name.localeCompare(b.name));
+          const maxTotal = rows.length ? rows[0].total : 1;
+          return (
+            <div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                <span style={{fontSize:12,color:T.textDim}}>{rows.length} joueur{rows.length>1?"s":""} avec des soins passés</span>
+                <div style={{display:"flex",gap:6}}>
+                  {[{key:"total",label:"⬇ Total"},{key:"name",label:"A→Z"}].map(s=>(
+                    <button key={s.key} onClick={()=>setPlayerSort(s.key)} style={{
+                      padding:"4px 10px",borderRadius:8,fontSize:11,fontWeight:700,cursor:"pointer",
+                      background:playerSort===s.key?T.navy:T.surface2,
+                      border:`1px solid ${playerSort===s.key?T.navy:T.border}`,
+                      color:playerSort===s.key?"#fff":T.textMid,
+                    }}>{s.label}</button>
+                  ))}
+                </div>
+              </div>
+              {rows.length === 0 && <div style={css.emptyHint}>Aucune donnée.</div>}
+              {rows.map(r => (
+                <div key={r.name} style={{marginBottom:10,padding:"10px 12px",background:T.surface2,borderRadius:10,border:`1px solid ${T.border}`}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                    <span style={{fontWeight:700,fontSize:14,color:T.text}}>{r.name}</span>
+                    <span style={{fontWeight:800,fontSize:15,color:T.navy}}>{r.total} <span style={{fontSize:11,fontWeight:600,color:T.textDim}}>total</span></span>
+                  </div>
+                  {/* Barre soins */}
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                    <span style={{fontSize:11,color:T.navy,fontWeight:700,width:58,flexShrink:0}}>🩺 Soins</span>
+                    <div style={{flex:1,height:10,background:T.surface3,borderRadius:5,overflow:"hidden"}}>
+                      <div style={{width:`${Math.round(r.soins/maxTotal*100)}%`,height:"100%",background:T.navy,borderRadius:5,transition:"width 0.4s"}} />
+                    </div>
+                    <span style={{fontSize:12,fontWeight:700,color:T.navy,minWidth:24,textAlign:"right"}}>{r.soins}</span>
+                  </div>
+                  {/* Barre straps */}
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:11,color:STRAP_COLOR,fontWeight:700,width:58,flexShrink:0}}>🩹 Straps</span>
+                    <div style={{flex:1,height:10,background:T.surface3,borderRadius:5,overflow:"hidden"}}>
+                      <div style={{width:`${Math.round(r.straps/maxTotal*100)}%`,height:"100%",background:STRAP_COLOR,borderRadius:5,transition:"width 0.4s"}} />
+                    </div>
+                    <span style={{fontSize:12,fontWeight:700,color:STRAP_COLOR,minWidth:24,textAlign:"right"}}>{r.straps}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
