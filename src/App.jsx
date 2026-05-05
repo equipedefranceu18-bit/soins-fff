@@ -124,7 +124,7 @@ export default function App() {
         if (x.pract_id && x.pract_id.startsWith(STRAP_ID+"_")) {
           stm[`${x.pract_id}|${x.date}|${x.time}`] = { player: x.player || "", locked: x.locked };
         } else {
-          bm[`${x.pract_id}|${x.date}|${x.time}`] = {player:x.player,locked:x.locked,note:x.note||"",duration:x.duration||60,cancelled:x.cancelled||false};
+          bm[`${x.pract_id}|${x.date}|${x.time}`] = {player:x.player,locked:x.locked,note:x.note||"",duration:x.duration||60,cancelled:x.cancelled||false,booked_at:x.booked_at||null,cancelled_at:x.cancelled_at||null};
         }
       });
       const sb = await supabase.from("schedule_blocks").select("*");
@@ -403,7 +403,7 @@ export default function App() {
     }
     const slotDur = getSlotDuration(selectedPract, selectedDate, selectedTime);
     const is30 = slotDur === 30 || selectedTime.endsWith(":30") || isSplit(selectedPract, selectedDate, selectedTime);
-    await supabase.from("bookings").upsert({pract_id:selectedPract, date:selectedDate, time:selectedTime, player:playerName.trim(), locked:false, note:"", duration:is30?30:60}, {onConflict:"pract_id,date,time"});
+    await supabase.from("bookings").upsert({pract_id:selectedPract, date:selectedDate, time:selectedTime, player:playerName.trim(), locked:false, note:"", duration:is30?30:60, booked_at:new Date().toISOString(), cancelled:false, cancelled_at:null}, {onConflict:"pract_id,date,time"});
     await loadAll();
     const p = PRACTITIONERS.find(x => x.id === selectedPract);
     if (!p) return; // sécurité
@@ -423,7 +423,7 @@ export default function App() {
       // Garder la trace (cancelled=true) mais libérer le créneau (player=null)
       const bk = getBooking(practId, date, time);
       const cancelledPlayer = bk?.player || playerName;
-      await supabase.from("bookings").update({ cancelled: true, player: "", note: (bk?.note||"") + (bk?.note ? " | " : "") + "Annulé par: "+cancelledPlayer }).eq("pract_id",practId).eq("date",date).eq("time",time);
+      await supabase.from("bookings").update({ cancelled: true, player: "", cancelled_at: new Date().toISOString(), note: (bk?.note||"") + (bk?.note ? " | " : "") + "Annulé par: "+cancelledPlayer }).eq("pract_id",practId).eq("date",date).eq("time",time);
       await loadAll();
     }
   }
@@ -1636,6 +1636,12 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
                         <div style={{fontSize:12,color:"#8b949e"}}>
                           {fmtLong(b.date)} · {b.time} · <span style={{color:p.color}}>{p.name}</span>
                         </div>
+                        {b.booked_at && (
+                          <div style={{fontSize:10,color:"#aaa",marginTop:2}}>
+                            📅 Réservé le {new Date(b.booked_at).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}
+                            {b.cancelled_at && <span> · ❌ Annulé le {new Date(b.cancelled_at).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>}
+                          </div>
+                        )}
                         {b.note && (
                           <div style={{fontSize:12,color:"#c9d1d9",marginTop:4,padding:"4px 8px",background:"#21262d",borderRadius:6,borderLeft:`2px solid ${p.color}55`}}>
                             💬 {noteToDisplay(b.note)}
