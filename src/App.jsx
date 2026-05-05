@@ -1977,16 +1977,25 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       let bg = T.surface3+"88";
       let bl = "3px solid transparent";
       const covPastEmpty = covPast && (!covBooking || (covBooking.cancelled && !covBooking.player));
-      if (covPastEmpty) { bg = "#ccd0e0"; bl = "3px solid transparent"; }
+      // Strap covering check
+      const covStrapKey = `${STRAP_ID}_${k.id}|${date}|${coveringTime}`;
+      const covHasStrap = k.role === "kiné" && strapSlots && strapSlots[covStrapKey];
+      const covStrapPlayer = covHasStrap ? (strapSlots[covStrapKey]?.player || "") : "";
+      const covStrapBooked = !!covStrapPlayer;
+      if (covPastEmpty && !covStrapBooked) { bg = "#ccd0e0"; bl = "3px solid transparent"; }
+      else if (covHasStrap && !covPast) {
+        bg = covStrapBooked ? STRAP_COLOR+"44" : STRAP_COLOR+"22";
+        bl = `3px solid ${STRAP_COLOR}`;
+      }
       else if (covBooking && !covBooking.cancelled) { bg = k.color+"44"; bl = `3px solid ${k.color}`; }
-      else if (covOpen) {
+      else if (covOpen && !covPast) {
         bg = covRec ? k.color+"14" : k.color+"0c";
         bl = covRec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
-      }
+      } else if (covPast) { bg = "#ccd0e0"; bl = "3px solid transparent"; }
       return (
         <div key={`${k.id}-${time}`} style={{
           height: h, flexShrink: 0,
-          borderBottom: `1px solid ${covPastEmpty ? "#b8bdd0" : T.border2}`,
+          borderBottom: `1px solid ${(covPastEmpty || (covPast && !covBooking?.player)) ? "#b8bdd0" : T.border2}`,
           borderRight: `1px solid ${T.border}`,
           background: bg, borderLeft: bl,
           overflow: "hidden",
@@ -2016,6 +2025,19 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       const strapData = strapSlots[strapKey];
       const strapPlayer = strapData?.player || "";
       const isBooked = !!strapPlayer;
+      // Strap passé non réservé → même gris que les autres cases passées
+      if (slotPast && !isBooked) {
+        return (
+          <div key={`${k.id}-${time}`} style={{
+            height: h, flexShrink: 0,
+            borderBottom: `1px solid #b8bdd0`,
+            borderRight: `1px solid ${T.border}`,
+            borderLeft: "3px solid transparent",
+            background: "#ccd0e0",
+            overflow:"hidden",
+          }} />
+        );
+      }
       return (
         <div key={`${k.id}-${time}`} style={{
           height: h, flexShrink: 0,
@@ -2025,7 +2047,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           background: isBooked ? STRAP_COLOR+"44" : STRAP_COLOR+"22",
           display:"flex", alignItems:"center", justifyContent:"center",
           cursor: !isPastDay && subMode === "straps" ? "pointer" : "default",
-          opacity: slotPast ? 0.35 : 1,
+          opacity: slotPast ? 0.6 : 1,
           overflow:"hidden",
         }}
           onClick={() => !isPastDay && subMode === "straps" && !isBooked && onCellClick(k.id, date, time)}>
