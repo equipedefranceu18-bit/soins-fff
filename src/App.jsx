@@ -2059,8 +2059,8 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     let indicator = null;
 
 
-    // Créneau passé sans réservation → grisé non cliquable
-    if (slotPast && !booking) {
+    // Créneau passé sans réservation (ouvert ou fermé) → grisé non cliquable
+    if (slotPast && (!booking || (booking.cancelled && !booking.player))) {
       return (
         <div key={`${k.id}-${time}`} style={{
           ...commonStyle,
