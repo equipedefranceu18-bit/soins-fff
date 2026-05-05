@@ -444,7 +444,7 @@ export default function App() {
     return Object.entries(bookings)
       .filter(([,v]) => v.player || v.cancelled) // exclure les lignes vides
       .map(([k,v]) => { const [pId,date,time] = k.split("|"); return { pId,date,time,...v }; })
-      .sort((a,b) => (b.date+b.time).localeCompare(a.date+a.time)); // most recent first
+      .sort((a,b) => (b.booked_at||"").localeCompare(a.booked_at||"")); // most recently booked first
   }
 
   // ─── render ───────────────────────────────────────────────────────────────────
