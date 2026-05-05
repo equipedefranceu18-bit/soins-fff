@@ -104,6 +104,7 @@ export default function App() {
   const [splitSlots, setSplitSlots] = useState({});
   const [strapSlots, setStrapSlots] = useState({}); // { "date|time": true }
   const [scheduleBlocks, setScheduleBlocks] = useState([]); // [{id, date, time_start, time_end, label, color}]
+  const [bookingHistory, setBookingHistory] = useState([]); // toutes les lignes brutes (y compris annulées)
   const [dbReady,    setDbReady]    = useState(false);
 
   const loadAll = useCallback(async () => {
@@ -119,16 +120,31 @@ export default function App() {
       const cm={}; (c.data||[]).forEach(x=>{cm[`${x.pract_id}|${x.date}|${x.time}`]=true;});
       const rm={}; (r.data||[]).forEach(x=>{rm[`${x.pract_id}|dow${x.dow}|${x.time}`]=true;});
       const sm={}; (s.data||[]).forEach(x=>{sm[`${x.pract_id}|${x.date}|${x.base_time}`]=true;});
-      const bm={}; const stm={};
+      const bm={}; const stm={}; const allHistory=[];
       (b.data||[]).forEach(x => {
         if (x.pract_id && x.pract_id.startsWith(STRAP_ID+"_")) {
           stm[`${x.pract_id}|${x.date}|${x.time}`] = { player: x.player || "", locked: x.locked };
         } else {
-          bm[`${x.pract_id}|${x.date}|${x.time}`] = {player:x.player,locked:x.locked,note:x.note||"",duration:x.duration||60,cancelled:x.cancelled||false,booked_at:x.booked_at||null,cancelled_at:x.cancelled_at||null,cancelled_player:x.cancelled_player||""};
+          const entry = {id:x.id,player:x.player||"",locked:x.locked,note:x.note||"",duration:x.duration||60,cancelled:x.cancelled||false,booked_at:x.booked_at||null,cancelled_at:x.cancelled_at||null,cancelled_player:x.cancelled_player||""};
+          allHistory.push({pId:x.pract_id, date:x.date, time:x.time, ...entry});
+          const key = `${x.pract_id}|${x.date}|${x.time}`;
+          const existing = bm[key];
+          if (!existing) {
+            bm[key] = entry;
+          } else {
+            // Préférer la ligne active (non annulée) ; sinon garder la plus récente
+            if (!entry.cancelled && existing.cancelled) {
+              bm[key] = entry;
+            } else if (entry.cancelled === existing.cancelled) {
+              const dateA = existing.booked_at || existing.cancelled_at || "";
+              const dateB = entry.booked_at || entry.cancelled_at || "";
+              if (dateB > dateA) bm[key] = entry;
+            }
+          }
         }
       });
       const sb = await supabase.from("schedule_blocks").select("*");
-      setOpen(om); setClosed(cm); setRecurring(rm); setSplitSlots(sm); setBookings(bm); setStrapSlots(stm);
+      setOpen(om); setClosed(cm); setRecurring(rm); setSplitSlots(sm); setBookings(bm); setStrapSlots(stm); setBookingHistory(allHistory);
       setScheduleBlocks(sb.data||[]);
       setDbReady(true);
     } catch(e) { console.warn("Supabase:",e.message); setDbReady(true); }
@@ -365,7 +381,9 @@ export default function App() {
     const is30 = time.endsWith(":30") || isSplit(practId, date, time);
     await supabase.from("open_slots").upsert({pract_id:practId, date, time});
     await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
-    await supabase.from("bookings").upsert({pract_id:practId, date, time, player, locked:true, note:"", duration:is30?30:60}, {onConflict:"pract_id,date,time"});
+    // Supprimer d'abord toute réservation active (non annulée) sur ce créneau
+    await supabase.from("bookings").delete().match({pract_id:practId, date, time}).eq("cancelled", false);
+    await supabase.from("bookings").insert({pract_id:practId, date, time, player, locked:true, note:"", duration:is30?30:60, booked_at:new Date().toISOString(), cancelled:false});
     await loadAll();
   }
 
@@ -403,7 +421,9 @@ export default function App() {
     }
     const slotDur = getSlotDuration(selectedPract, selectedDate, selectedTime);
     const is30 = slotDur === 30 || selectedTime.endsWith(":30") || isSplit(selectedPract, selectedDate, selectedTime);
-    await supabase.from("bookings").upsert({pract_id:selectedPract, date:selectedDate, time:selectedTime, player:playerName.trim(), locked:false, note:"", duration:is30?30:60, booked_at:new Date().toISOString(), cancelled:false, cancelled_at:null}, {onConflict:"pract_id,date,time"});
+    // On insert toujours une nouvelle ligne pour conserver l'historique complet
+    // (une annulation précédente reste visible dans bookingHistory)
+    await supabase.from("bookings").insert({pract_id:selectedPract, date:selectedDate, time:selectedTime, player:playerName.trim(), locked:false, note:"", duration:is30?30:60, booked_at:new Date().toISOString(), cancelled:false, cancelled_at:null});
     await loadAll();
     const p = PRACTITIONERS.find(x => x.id === selectedPract);
     if (!p) return; // sécurité
@@ -441,11 +461,12 @@ export default function App() {
 
   // ── all past bookings (staff history) ────────────────────────────────────────
   function getPastBookings() {
-    return Object.entries(bookings)
-      .filter(([,v]) => v.player || v.cancelled || v.booked_at) // inclure tout ce qui a été réservé
-      .map(([k,v]) => { const [pId,date,time] = k.split("|"); return { pId,date,time,...v }; })
+    // Utilise bookingHistory (toutes les lignes brutes) pour afficher TOUTES les réservations
+    // y compris annulées, et les réservations successives sur un même créneau
+    return bookingHistory
+      .filter(b => b.player || b.cancelled || b.booked_at)
+      .slice() // copie avant tri
       .sort((a,b) => {
-        // Trier par cancelled_at si annulé, sinon par booked_at
         const dateA = a.cancelled_at || a.booked_at || "";
         const dateB = b.cancelled_at || b.booked_at || "";
         return dateB.localeCompare(dateA);
@@ -1619,13 +1640,13 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             const monthLabel = new Date(`${month}-15`).toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
             return (
               <div key={month} style={{padding:"0 20px 16px"}}>
-                <div style={css.histMonthHeader}>{monthLabel} — {entries.length} soin{entries.length>1?"s":""}</div>
+                <div style={css.histMonthHeader}>{monthLabel} — {entries.filter(e=>!e.cancelled).length} soin{entries.filter(e=>!e.cancelled).length>1?"s":""}{entries.some(e=>e.cancelled)?" (+" + entries.filter(e=>e.cancelled).length + " annulé" + (entries.filter(e=>e.cancelled).length>1?"s":"") + ")":""}</div>
                 {entries.map((b,i) => {
                   const p = PRACTITIONERS.find(x=>x.id===b.pId) ||
                     (b.pId?.startsWith("strap_") ? {id:b.pId,name:"Strap",color:STRAP_COLOR,initials:"🩹"} : null);
                   if (!p) return null;
                   return (
-                    <div key={i} style={{...css.histRow, opacity: b.cancelled ? 0.6 : 1, background: b.cancelled ? "#fff5f5" : "transparent"}}>
+                    <div key={b.id||i} style={{...css.histRow, opacity: b.cancelled ? 0.6 : 1, background: b.cancelled ? "#fff5f5" : "transparent"}}>
                       <div style={{...css.practDot,background:b.cancelled?"#ccc":p.color,flexShrink:0}} />
                       <div style={{flex:1}}>
                         <div style={{display:"flex",alignItems:"center",gap:8}}>
