@@ -1976,8 +1976,9 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       const covPast = isSlotPast(coveringTime);
       let bg = T.surface3+"88";
       let bl = "3px solid transparent";
-      if (covPast && !covBooking) { bg = "#f0f0f0"; }
-      else if (covBooking) { bg = k.color+"44"; bl = `3px solid ${k.color}`; }
+      const covPastEmpty = covPast && (!covBooking || (covBooking.cancelled && !covBooking.player));
+      if (covPastEmpty) { bg = "#ccd0e0"; bl = "3px solid transparent"; }
+      else if (covBooking && !covBooking.cancelled) { bg = k.color+"44"; bl = `3px solid ${k.color}`; }
       else if (covOpen) {
         bg = covRec ? k.color+"14" : k.color+"0c";
         bl = covRec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
@@ -1985,11 +1986,10 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       return (
         <div key={`${k.id}-${time}`} style={{
           height: h, flexShrink: 0,
-          borderBottom: `1px solid ${T.border2}`,
+          borderBottom: `1px solid ${covPastEmpty ? "#b8bdd0" : T.border2}`,
           borderRight: `1px solid ${T.border}`,
           background: bg, borderLeft: bl,
           overflow: "hidden",
-          opacity: covPast && !covBooking ? 0.45 : 1,
         }} />
       );
     }
