@@ -520,6 +520,7 @@ export default function App() {
           getPastBookings={getPastBookings}
           getSlotDuration={getSlotDuration}
           bookings={bookings}
+          bookingHistory={bookingHistory}
           strapSlots={strapSlots} toggleStrap={toggleStrap}
           scheduleBlocks={scheduleBlocks} addScheduleBlock={addScheduleBlock} deleteScheduleBlock={deleteScheduleBlock}
           PLAYERS={PLAYERS} setView={setView}
@@ -1500,7 +1501,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
   unbook, staffBookSlot, addNote, moveBooking, staffTarget, setStaffTarget,
   staffPlayerName, setStaffPlayerName,
   getSlotsForContext, isSplit, toggleSplit, BASE_SLOTS, isHalfSlot,
-  getPastBookings, getSlotDuration, bookings, strapSlots, toggleStrap,
+  getPastBookings, getSlotDuration, bookings, bookingHistory, strapSlots, toggleStrap,
   scheduleBlocks, addScheduleBlock, deleteScheduleBlock, PLAYERS, setView }) {
 
   const [dvSubMode, setDvSubMode] = useState("slots");
