@@ -25,7 +25,7 @@ const PLAYERS = [
 const STAFF_PASSWORD = "staff2024";
 const STRAP_COLOR = "#ff7043"; // Orange unique straps
 const STRAP_ID = "strap";    // pract_id virtuel en Supabase
-const BOOKING_ADVANCE_HOURS = 20;
+const BOOKING_ADVANCE_HOURS = 24;
 const CASCADE_AFTER_HOUR = 21; // slots from this hour onward require previous to be booked first
 
 // ─── TIME SLOTS ───────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ function slotKey(practId, date, time) { return `${practId}|${date}|${time}`; }
 function recurKey(practId, dow, time) { return `${practId}|dow${dow}|${time}`; }
 function dowOf(dateStr) { return (new Date(dateStr+"T12:00:00").getDay() + 6) % 7; } // 0=Mon…6=Sun
 
-// Slot bookable only in the 20h window before it
+// Slot bookable only in the 24h window before it
 function isWithinBookingWindow(date, time) {
   const slotDate = new Date(`${date}T${time}:00`);
   const hoursUntil = (slotDate - new Date()) / 3600000;
@@ -816,7 +816,7 @@ function PlayerView({
       {/* Mode tabs supprimés — vue créneaux uniquement */}
 
       <div style={css.noticeBar}>
-        🕐 Les créneaux ne sont réservables que dans les 20h qui précèdent le soin
+        🕐 Les créneaux ne sont réservables que dans les 24h qui précèdent le soin
       </div>
 
       {/* ── Single-day navigator ── */}
@@ -1393,7 +1393,7 @@ function PlayerSlotCell({ avail, slotOpen, booking, past, selected, color, weeke
   if (!avail) {
     return (
       <div style={{...css.slotCell,height:h,background:weBg,opacity:0.35,cursor:"default"}}
-        title="Pas encore dans la fenêtre de 20h">
+        title="Pas encore dans la fenêtre de 24h">
         <span style={{fontSize:9}}>🕐</span>
       </div>
     );
