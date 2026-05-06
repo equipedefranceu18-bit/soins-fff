@@ -370,14 +370,38 @@ export default function App() {
   }
 
   async function toggleRecurring(practId, date, time, duration=60) {
-    const dow = dowOf(date);
-    const rk = recurKey(practId, dow, time);
+    // Vérifie si le créneau du jour courant est déjà ouvert via open_slots
     const sk = slotKey(practId, date, time);
-    if (recurring[rk]) {
-      await supabase.from("recurring_slots").delete().match({pract_id:practId, dow, time});
+    const alreadyOpen = !!open[sk];
+
+    if (alreadyOpen) {
+      // Supprimer les 7 prochains jours (jour courant inclus)
+      const deletes = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(date);
+        d.setDate(d.getDate() + i);
+        const ds = d.toISOString().split("T")[0];
+        deletes.push(
+          supabase.from("open_slots").delete().match({pract_id:practId, date:ds, time})
+        );
+      }
+      await Promise.all(deletes);
     } else {
-      await supabase.from("recurring_slots").upsert({pract_id:practId, dow, time, duration}, {onConflict:"pract_id,dow,time"});
-      await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
+      // Ouvrir les 7 prochains jours (jour courant inclus)
+      const upserts = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(date);
+        d.setDate(d.getDate() + i);
+        const ds = d.toISOString().split("T")[0];
+        upserts.push(
+          supabase.from("open_slots").upsert({pract_id:practId, date:ds, time, duration}, {onConflict:"pract_id,date,time"})
+        );
+        // S'assurer qu'il n'y a pas de closed_slot qui bloque
+        upserts.push(
+          supabase.from("closed_slots").delete().match({pract_id:practId, date:ds, time})
+        );
+      }
+      await Promise.all(upserts);
     }
     await loadAll();
   }
