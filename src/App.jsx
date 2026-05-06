@@ -7,10 +7,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ─── DATA ──────────────────────────────────────────────────────────────────────
 const PRACTITIONERS = [
-  { id: "k1", name: "Guillaume", role: "kiné",  color: "#4fc3f7", initials: "GU" },
-  { id: "k2", name: "Denis",     role: "kiné",  color: "#ef5350", initials: "DE" },
-  { id: "k3", name: "Alexandre", role: "kiné",  color: "#ffd54f", initials: "AL" },
-  { id: "k4", name: "Clément",   role: "kiné",  color: "#81c784", initials: "CL" },
+  { id: "k1", name: "Guillaume", role: "kiné",  color: "#002395", initials: "GU" },
+  { id: "k2", name: "Denis",     role: "kiné",  color: "#FFFFFF", initials: "DE" },
+  { id: "k3", name: "Alexandre", role: "kiné",  color: "#ED2939", initials: "AL" },
+  { id: "k4", name: "Clément",   role: "kiné",  color: "#002395", initials: "CL" },
   { id: "o1", name: "Jean-Yves", role: "ostéo", color: "#ce93d8", initials: "JY" },
 ];
 
