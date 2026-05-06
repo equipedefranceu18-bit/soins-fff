@@ -1144,7 +1144,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
             height:ROW-6, width:"100%", minWidth:42, padding:"0 4px",
             background: strapBooked ? "#ebebeb" : sel ? STRAP_COLOR : STRAP_COLOR+"25",
-            border:sel?`1px solid ${STRAP_COLOR}`:"none",
+            border:`2px solid ${strapBooked ? "#ccc" : STRAP_COLOR}`,
             borderRadius:10, cursor: strapBooked||!strapAvail ? "not-allowed" : "pointer",
             transition:"all 0.15s",
           }}
@@ -1182,8 +1182,8 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
         <button style={{
           display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
           height:h, width:"100%", minWidth:42, padding:"0 4px",
-          background:bg, border:sel?`1px solid ${border}`:"none", borderRadius:10,
-          cursor, gap:1, boxShadow:sel?`0 2px 8px ${p.color}44`:"none",
+          background:bg, border:`2px solid ${border}`, borderRadius:10,
+          cursor, gap:1, boxShadow:sel?`0 2px 10px ${p.color}55`:"none",
           transition:"all 0.15s",
         }}
           onClick={()=>(avail&&!blocked&&!booked)&&onSlotClick(p.id,d,time)}
@@ -1350,7 +1350,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             {osteos.map(p => <OsteoColumn key={p.id} p={p} />)}
           </div>
           {/* Bandeaux planning overlay */}
-          <div style={{position:"absolute", top:0, bottom:0, left:0, right:0, pointerEvents:"none", zIndex:2}}>
+          <div style={{position:"absolute", top:0, bottom:0, left:64, right:0, pointerEvents:"none", zIndex:2}}>
             {dayBlocks.map(block => {
               const startIdx = baseTimes.indexOf(block.time_start.slice(0,5));
               const endIdx = baseTimes.indexOf(block.time_end.slice(0,5));
@@ -1360,22 +1360,19 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
               const height = endIdx >= 0 ? (endIdx - startIdx) * ROW_H : ROW_H;
               return (
                 <div key={block.id} style={{
-                  position:"absolute", left:64, right:0,
+                  position:"absolute", left:0, right:0,
                   top, height,
-                  background: block.color+"14",
-                  borderTop: `1px solid ${block.color}55`,
-                  borderBottom: `1px solid ${block.color}33`,
-                  borderLeft: `3px solid ${block.color}`,
-                  display:"flex", alignItems:"center", paddingLeft:16,
+                  background: block.color+"33",
+                  borderTop: `3px solid ${block.color}`,
+                  borderBottom: `2px solid ${block.color}55`,
+                  display:"flex", alignItems:"center", paddingLeft:12,
                   pointerEvents:"none",
                 }}>
                   <span style={{
                     fontSize:12, fontWeight:800, color:block.color,
-                    background: block.color+"22",
-                    borderRadius:20,
-                    padding:"3px 10px",
-                    border:`1px solid ${block.color}66`,
-                    letterSpacing:0.3,
+                    background: block.color+"22", borderRadius:6,
+                    padding:"3px 10px", border:`1px solid ${block.color}55`,
+                    boxShadow:`0 1px 4px ${block.color}33`,
                   }}>{block.label}</span>
                 </div>
               );
@@ -1773,6 +1770,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             <span style={css.legendBadge}>🔒 Assigné staff</span>
             <span style={{...css.legendBadge,color:"#ffd166"}}>⚡ ≥21h cascade</span>
             <span style={{...css.legendBadge,color:STRAP_COLOR,border:`1px solid ${STRAP_COLOR}44`}}>🩹 Strap (30')</span>
+            <span style={{...css.legendBadge,color:STRAP_COLOR,border:`1px solid ${STRAP_COLOR}44`}}>🩹 Strap (30')</span>
           </div>
         </>
       )}
@@ -1984,7 +1982,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       let bg, bl;
       if (covPast && !covHasActiveBooking && !(covHasStrap && covStrapBooked)) {
         // Passé sans réservation active → gris uniforme
-        bg = "#d0d4e4"; bl = "3px solid transparent";
+        bg = "#ccd0e0"; bl = "3px solid transparent";
       } else if (covHasActiveBooking) {
         bg = k.color+"44"; bl = `3px solid ${k.color}`;
       } else if (covHasStrap) {
@@ -1995,7 +1993,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         bl = covRec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
       } else {
         // Fermé (ni ouvert ni réservé) — passé ou non → gris si passé, neutre sinon
-        bg = covPast ? "#d0d4e4" : T.surface3+"88";
+        bg = covPast ? "#ccd0e0" : T.surface3+"88";
         bl = "3px solid transparent";
       }
       const covBorderPast = covPast && !covHasActiveBooking && !(covHasStrap && covStrapBooked);
@@ -2040,7 +2038,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
             borderBottom: `1px solid #b8bdd0`,
             borderRight: `1px solid ${T.border}`,
             borderLeft: "3px solid transparent",
-            background: "#d0d4e4",
+            background: "#ccd0e0",
             overflow:"hidden",
           }} />
         );
@@ -2093,8 +2091,8 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       return (
         <div key={`${k.id}-${time}`} style={{
           ...commonStyle,
-          background: "#d0d4e4",
-          borderBottom: `1px solid #b8bdd0`,
+          background: isHour ? "#d8dce8" : "#ccd0e0",
+          borderBottom: isHour ? `1px solid #b8bdd0` : `1px solid #c5c9da`,
           borderLeft: "3px solid transparent",
           cursor: "default",
           display:"flex", alignItems:"center", justifyContent:"center",
@@ -2200,9 +2198,9 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
             <div key={`axis-${time}`} style={{
               height: H30, flexShrink:0,
               background: axisPast
-                ? ("#d0d4e4")
+                ? (time.endsWith(":00") ? "#c8ccdc" : "#bec2d4")
                 : (time.endsWith(":00") ? T.surface2 : T.surface3),
-              borderBottom: axisPast ? `1px solid #b8bdd0` : (time.endsWith(":00") ? `2px solid ${T.border}` : `1px solid ${T.border2}`),
+              borderBottom: time.endsWith(":00") ? `2px solid ${axisPast ? "#adb2c8" : T.border}` : `1px solid ${axisPast ? "#b8bdd0" : T.border2}`,
               borderRight:`1px solid ${T.border}`,
               display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 8px",
             }}>
@@ -2250,20 +2248,16 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
               position:"absolute",
               left: 64, right: 0,
               top, height,
-              background: block.color+"14",
-              borderTop: `1px solid ${block.color}55`,
-              borderBottom: `1px solid ${block.color}33`,
-              borderLeft: `3px solid ${block.color}`,
+              background: block.color+"28",
+              borderTop: `3px solid ${block.color}88`,
+              borderBottom: `2px solid ${block.color}44`,
               display:"flex", alignItems:"center", paddingLeft:16,
               pointerEvents:"none", zIndex:3,
             }}>
               <span style={{
-                fontSize:12, fontWeight:800, color:block.color,
-                background: block.color+"22",
-                borderRadius:20,
-                padding:"3px 10px",
-                border:`1px solid ${block.color}66`,
-                letterSpacing:0.3,
+                fontSize:12, fontWeight:800, color:"#fff",
+                background: block.color+"dd", borderRadius:6,
+                padding:"3px 12px", boxShadow:`0 1px 6px ${block.color}55`,
               }}>{block.label}</span>
             </div>
           );
