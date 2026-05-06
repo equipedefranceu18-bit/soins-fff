@@ -535,7 +535,7 @@ export default function App() {
 function FFFShield({ size = 90 }) {
   return (
     <img
-      src="https://raw.githubusercontent.com/equipedefranceu18-bit/soins-fff/main/logo%20fff.jfif"
+      src="https://raw.githubusercontent.com/equipedefranceu18-bit/soins-fff/main/Logo_F%C3%A9d%C3%A9ration_Fran%C3%A7aise_Football_2022_svg.png"
       alt="Logo FFF"
       width={size}
       style={{objectFit:"contain", display:"block"}}
