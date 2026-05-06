@@ -187,6 +187,7 @@ export default function App() {
   const [staffAuth,       setStaffAuth]       = useState(false);
   const [staffPract,      setStaffPract]      = useState(PRACTITIONERS[0].id);
   const [staffTarget,     setStaffTarget]     = useState(null);
+  const [staffDefaultDuration, setStaffDefaultDuration] = useState(60);
   const [staffPlayerName, setStaffPlayerName] = useState("");
 
   // History view (staff)
@@ -1674,6 +1675,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           scheduleBlocks={scheduleBlocks}
           addScheduleBlock={addScheduleBlock}
           deleteScheduleBlock={deleteScheduleBlock}
+          onDurationChange={setStaffDefaultDuration}
         />
       )}
 
@@ -1736,7 +1738,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
               if (dvSubMode === "addPlayer") {
                 setStaffTarget({ practId, date, time });
               } else if (dvSubMode === "recurring") {
-                toggleRecurring(practId, date, time, defaultDuration);
+                toggleRecurring(practId, date, time, staffDefaultDuration);
               } else if (dvSubMode === "split") {
                 if (!time.endsWith(":30")) toggleSplit(practId, date, time);
               } else {
@@ -1909,7 +1911,7 @@ function PlanningEditor({ date, scheduleBlocks, addScheduleBlock, deleteSchedule
 // The time axis shows base 1h slots. Split kinés show 2×30' within their H1 space.
 // Other kinés keep H1 — no forced split bleeding across columns.
 function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpen, isRecurring,
-  getSlotsForContext, isSplit, onCellClick, unbook, toggleOpen, getSlotDuration, strapSlots, toggleStrap, scheduleBlocks }) {
+  getSlotsForContext, isSplit, onCellClick, unbook, toggleOpen, getSlotDuration, strapSlots, toggleStrap, scheduleBlocks, onDurationChange }) {
 
   const isPastDay = isPast(date);
   const H30 = 28, HEADER = 48;
@@ -1924,7 +1926,8 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     return h < now.getHours() || (h === now.getHours() && m <= now.getMinutes());
   }
   const [durationPicker, setDurationPicker] = useState(null); // {practId, time}
-  const [defaultDuration, setDefaultDuration] = useState(60); // 30 ou 60
+  const [defaultDuration, _setDefaultDuration] = useState(60); // 30 ou 60
+  const setDefaultDuration = (d) => { _setDefaultDuration(d); onDurationChange && onDurationChange(d); };
 
   // Générer tous les créneaux de 30 minutes de 9h00 à 23h30
   const allTimes = [];
