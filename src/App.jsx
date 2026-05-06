@@ -1760,6 +1760,7 @@ function PlanningEditor({ date, scheduleBlocks, addScheduleBlock, deleteSchedule
   const [timeStart, setTimeStart] = useState("09:00");
   const [timeEnd,   setTimeEnd]   = useState("10:00");
   const [useCustom, setUseCustom] = useState(false);
+  const [editingId, setEditingId] = useState(null); // id du bandeau en cours d'édition
 
   const dayBlocks = scheduleBlocks
     .filter(b => b.date === date)
@@ -1774,10 +1775,36 @@ function PlanningEditor({ date, scheduleBlocks, addScheduleBlock, deleteSchedule
     setUseCustom(false);
   }
 
+  function startEdit(b) {
+    const preset = BLOCK_PRESETS.find(p => p.label === b.label);
+    if (preset) {
+      setLabel(preset.label);
+      setColor(preset.color);
+      setUseCustom(false);
+    } else {
+      setCustomLabel(b.label);
+      setUseCustom(true);
+    }
+    setTimeStart(b.time_start.slice(0,5));
+    setTimeEnd(b.time_end.slice(0,5));
+    setEditingId(b.id);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit() {
+    if (!finalLabel.trim() || timeStart >= timeEnd) return;
+    await deleteScheduleBlock(editingId);
+    await addScheduleBlock(date, timeStart, timeEnd, finalLabel.trim(), finalColor);
+    setEditingId(null);
+  }
+
   return (
     <div style={{padding:"0 20px 24px"}}>
       <div style={{background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:16, marginBottom:16, boxShadow:"0 2px 8px rgba(0,35,149,0.06)"}}>
-        <div style={{...css.label, marginBottom:10}}>Ajouter un bandeau</div>
+        <div style={{...css.label, marginBottom:10}}>{editingId ? "✏️ Modifier le bandeau" : "Ajouter un bandeau"}</div>
 
         {/* Presets */}
         <div style={{display:"flex", flexWrap:"wrap", gap:8, marginBottom:12}}>
@@ -1812,13 +1839,22 @@ function PlanningEditor({ date, scheduleBlocks, addScheduleBlock, deleteSchedule
             <div style={{...css.label, marginBottom:4}}>À</div>
             <input type="time" style={css.input} value={timeEnd} onChange={e=>setTimeEnd(e.target.value)} />
           </div>
-          <button style={{...css.btn, ...css.btnConfirm, height:44, flexShrink:0}}
-            onClick={()=>{
-              if (!finalLabel.trim() || timeStart >= timeEnd) return;
-              addScheduleBlock(date, timeStart, timeEnd, finalLabel.trim(), finalColor);
-            }}>
-            + Ajouter
-          </button>
+          {editingId ? (
+            <div style={{display:"flex", gap:6, flexShrink:0}}>
+              <button style={{...css.btn, height:44, background:"#6c757d22", border:"1px solid #6c757d", color:"#6c757d"}}
+                onClick={cancelEdit}>Annuler</button>
+              <button style={{...css.btn, ...css.btnConfirm, height:44}}
+                onClick={saveEdit}>✓ Enregistrer</button>
+            </div>
+          ) : (
+            <button style={{...css.btn, ...css.btnConfirm, height:44, flexShrink:0}}
+              onClick={()=>{
+                if (!finalLabel.trim() || timeStart >= timeEnd) return;
+                addScheduleBlock(date, timeStart, timeEnd, finalLabel.trim(), finalColor);
+              }}>
+              + Ajouter
+            </button>
+          )}
         </div>
       </div>
 
@@ -1835,6 +1871,12 @@ function PlanningEditor({ date, scheduleBlocks, addScheduleBlock, deleteSchedule
             }}>
               <span style={{fontSize:14, fontWeight:800, color:b.color, flex:1}}>{b.label}</span>
               <span style={{fontSize:12, color:T.textDim}}>{b.time_start.slice(0,5)} – {b.time_end.slice(0,5)}</span>
+              <button style={{
+                padding:"4px 10px", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer",
+                background: editingId===b.id ? T.navy+"22" : T.surface2,
+                border: `1px solid ${editingId===b.id ? T.navy : T.border}`,
+                color: editingId===b.id ? T.navy : T.textMid,
+              }} onClick={()=> editingId===b.id ? cancelEdit() : startEdit(b)}>✏️</button>
               <button style={{...css.deleteBtn, fontSize:14}} onClick={()=>deleteScheduleBlock(b.id)}>✕</button>
             </div>
           ))}
