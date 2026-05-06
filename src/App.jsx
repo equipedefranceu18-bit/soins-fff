@@ -439,11 +439,27 @@ export default function App() {
     }
     const b = getBooking(practId, date, time);
     if (b && !b.locked && b.player === playerName && !isPast(date)) {
-      // Marquer comme annulé (garde la trace) plutôt que supprimer
-      // Garder la trace (cancelled=true) mais libérer le créneau (player=null)
       const bk = getBooking(practId, date, time);
       const cancelledPlayer = bk?.player || playerName;
+      const pract = PRACTITIONERS.find(p => p.id === practId);
+      const practName = pract ? pract.name : practId;
+      // Formatter la date lisiblement
+      const [y,mo,d] = date.split("-");
+      const dateLabel = new Date(date).toLocaleDateString("fr-FR", {weekday:"short", day:"numeric", month:"short"});
       await supabase.from("bookings").update({ cancelled: true, player: "", cancelled_player: cancelledPlayer, cancelled_at: new Date().toISOString() }).eq("pract_id",practId).eq("date",date).eq("time",time);
+      // Notification ntfy
+      try {
+        await fetch("https://ntfy.sh/soins-fff-staff-2026", {
+          method: "POST",
+          headers: {
+            "Title": "❌ Annulation RDV",
+            "Priority": "high",
+            "Tags": "rotating_light",
+            "Content-Type": "text/plain",
+          },
+          body: `${cancelledPlayer} annule son RDV\n📅 ${dateLabel} à ${time}\n👨‍⚕️ ${practName}\n\nCréneau maintenant libre !`,
+        });
+      } catch(e) { /* silencieux si hors ligne */ }
       await loadAll();
     }
   }
