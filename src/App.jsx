@@ -1144,7 +1144,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
             height:ROW-6, width:"100%", minWidth:42, padding:"0 4px",
             background: strapBooked ? "#ebebeb" : sel ? STRAP_COLOR : STRAP_COLOR+"25",
-            border:`2px solid ${strapBooked ? "#ccc" : STRAP_COLOR}`,
+            border:sel?`1px solid ${STRAP_COLOR}`:`1px solid ${strapBooked?"#ccc":STRAP_COLOR+"55"}`,
             borderRadius:10, cursor: strapBooked||!strapAvail ? "not-allowed" : "pointer",
             transition:"all 0.15s",
           }}
@@ -1182,8 +1182,8 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
         <button style={{
           display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
           height:h, width:"100%", minWidth:42, padding:"0 4px",
-          background:bg, border:`2px solid ${border}`, borderRadius:10,
-          cursor, gap:1, boxShadow:sel?`0 2px 10px ${p.color}55`:"none",
+          background:bg, border:sel?`1px solid ${border}`:`1px solid ${border}55`, borderRadius:10,
+          cursor, gap:1, boxShadow:sel?`0 2px 8px ${p.color}44`:"none",
           transition:"all 0.15s",
         }}
           onClick={()=>(avail&&!blocked&&!booked)&&onSlotClick(p.id,d,time)}
