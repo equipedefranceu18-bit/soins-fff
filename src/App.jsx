@@ -1012,6 +1012,14 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
   const d = days.length === 1 ? fmtDate(days[0]) : null;
   if (!d) return null;
   const past = isPast(d);
+  const _today = todayStr();
+  function isTimePast(time) {
+    if (d < _today) return true;
+    if (d > _today) return false;
+    const [h, m] = time.split(":").map(Number);
+    const now = new Date();
+    return h < now.getHours() || (h === now.getHours() && m <= now.getMinutes());
+  }
   const osteos = practitioners.filter(p => p.role === "ostéo");
   const SEP = `2px solid ${T.navy}33`;
 
