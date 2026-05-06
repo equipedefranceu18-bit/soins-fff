@@ -1171,16 +1171,17 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
       {baseTimes.map((time, i) => {
         const isHour = time.endsWith(":00");
         const block = getBlockForTime(time);
+        const axPast = isTimePast(time);
         return (
           <div key={time} style={{
             gridRow: i+1,
-            background: block ? block.color+"25" : isHour ? T.surface2 : T.surface3,
-            borderBottom: isHour ? `2px solid ${block ? block.color+"44" : T.border}` : `1px solid ${T.border2}`,
+            background: axPast ? "#c8ccdc" : (block ? block.color+"25" : isHour ? T.surface2 : T.surface3),
+            borderBottom: isHour ? `2px solid ${block ? block.color+"44" : (axPast ? "#adb2c8" : T.border)}` : `1px solid ${axPast ? "#b8bdd0" : T.border2}`,
             borderLeft: block ? `3px solid ${block.color}` : "none",
             display:"flex", flexDirection:"column", alignItems:"flex-end", justifyContent:"center",
             padding:"0 4px", overflow:"hidden",
           }}>
-            <div style={{fontSize: isHour?11:9, fontWeight:isHour?700:400, color: block ? block.color : isHour?T.textMid:T.textDim, lineHeight:1.2}}>
+            <div style={{fontSize: isHour?11:9, fontWeight:isHour?700:400, color: axPast ? "#8890aa" : (block ? block.color : isHour?T.textMid:T.textDim), lineHeight:1.2}}>
               {time}
             </div>
 
@@ -1223,13 +1224,13 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
         {/* Lignes de fond (séparateurs) */}
         {baseTimes.map((time, i) => {
           const block = getBlockForTime(time);
+          const timePast = isTimePast(time);
           return (
             <div key={`bg-${time}`} style={{
               gridRow: i+1,
               gridColumn: 1,
               borderBottom: time.endsWith(":00") ? `2px solid ${block ? block.color+"33" : T.border}` : `1px solid ${T.border2}`,
-              background: time.endsWith(":00") ? T.surface : T.surface3+"88",
-              opacity: past ? 0.45 : 1,
+              background: timePast ? "#d0d4e4" : (time.endsWith(":00") ? T.surface : T.surface3+"88"),
               position:"relative",
             }}>
             </div>
@@ -1269,8 +1270,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             gridRow: i+1,
             gridColumn: 1,
             borderBottom: time.endsWith(":00") ? `2px solid ${T.border}` : `1px solid ${T.border2}`,
-            background: time.endsWith(":00") ? "#faf5ff" : "#f5eeff88",
-            opacity: past ? 0.45 : 1,
+            background: isTimePast(time) ? "#d0d4e4" : (time.endsWith(":00") ? "#faf5ff" : "#f5eeff88"),
           }} />
         ))}
         {visibleSlots.map(time => (
