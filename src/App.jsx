@@ -956,7 +956,7 @@ function ByPractGrid({ practitioners, days, selectedPract, onPractSelect, select
                     const date     = fmtDate(d);
                     const slots    = getSlotsForContext(selectedPract, date);
                     if (!slots.includes(time)) {
-                      return <div key={`${date}-${time}`} style={{...css.slotCell, height: isEffectivelyHalf ? 34 : 52, background:isWeekend(d)?"#0f1117":"#0d1117",opacity:0.3}} />;
+                      return <div key={`${date}-${time}`} style={{...css.slotCell, height: isEffectivelyHalf ? 34 : 52, background:"#0d1117",opacity:0.3}} />;
                     }
                     const avail    = isAvailable(selectedPract, date, time);
                     const slotOpen = isSlotOpen(selectedPract, date, time);
@@ -1553,7 +1553,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
               ...css.daySelectBtn,
               ...(isSel ? {background:"#58a6ff22",border:"1px solid #58a6ff",color:"#58a6ff"} : {}),
               ...(isToday && !isSel ? {color:"#00d4aa"} : {}),
-              ...(isWeekend(d) ? {background:"#0f1117"} : {}),
+              ...(isWeekend(d) ? {} : {}),
             }} onClick={()=>setStaffViewDay(date)}>
               <div style={{fontSize:11,fontWeight:600,textTransform:"capitalize"}}>{d.toLocaleDateString("fr-FR",{weekday:"short"})}</div>
               <div style={{fontSize:15,fontWeight:800}}>{d.getDate()}</div>
