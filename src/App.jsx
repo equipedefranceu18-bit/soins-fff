@@ -1144,7 +1144,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
             height:ROW-6, width:"100%", minWidth:42, padding:"0 4px",
             background: strapBooked ? "#ebebeb" : sel ? STRAP_COLOR : STRAP_COLOR+"25",
-            border:sel?`1px solid ${STRAP_COLOR}`:`1px solid ${strapBooked?"#ccc":STRAP_COLOR+"55"}`,
+            border:sel?`1px solid ${STRAP_COLOR}`:"none",
             borderRadius:10, cursor: strapBooked||!strapAvail ? "not-allowed" : "pointer",
             transition:"all 0.15s",
           }}
@@ -1182,7 +1182,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
         <button style={{
           display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
           height:h, width:"100%", minWidth:42, padding:"0 4px",
-          background:bg, border:sel?`1px solid ${border}`:`1px solid ${border}55`, borderRadius:10,
+          background:bg, border:sel?`1px solid ${border}`:"none", borderRadius:10,
           cursor, gap:1, boxShadow:sel?`0 2px 8px ${p.color}44`:"none",
           transition:"all 0.15s",
         }}
@@ -1362,13 +1362,12 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
                 <div key={block.id} style={{
                   position:"absolute", left:64, right:0,
                   top, height,
-                  background: block.color+"18",
-                  borderTop: `2px solid ${block.color}`,
-                  borderBottom: `1px solid ${block.color}44`,
-                  borderLeft: `4px solid ${block.color}`,
+                  background: block.color+"14",
+                  borderTop: `1px solid ${block.color}55`,
+                  borderBottom: `1px solid ${block.color}33`,
+                  borderLeft: `3px solid ${block.color}`,
                   display:"flex", alignItems:"center", paddingLeft:16,
                   pointerEvents:"none",
-                  boxShadow:`inset 0 1px 0 ${block.color}22`,
                 }}>
                   <span style={{
                     fontSize:12, fontWeight:800, color:block.color,
@@ -2251,13 +2250,12 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
               position:"absolute",
               left: 64, right: 0,
               top, height,
-              background: block.color+"18",
-              borderTop: `2px solid ${block.color}`,
-              borderBottom: `1px solid ${block.color}44`,
-              borderLeft: `4px solid ${block.color}`,
+              background: block.color+"14",
+              borderTop: `1px solid ${block.color}55`,
+              borderBottom: `1px solid ${block.color}33`,
+              borderLeft: `3px solid ${block.color}`,
               display:"flex", alignItems:"center", paddingLeft:16,
               pointerEvents:"none", zIndex:3,
-              boxShadow:`inset 0 1px 0 ${block.color}22`,
             }}>
               <span style={{
                 fontSize:12, fontWeight:800, color:block.color,
