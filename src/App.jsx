@@ -531,68 +531,18 @@ export default function App() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ─── FFF Logo SVG (style officiel : hexagone + coq + 2 étoiles + FFF) ─────────
+// ─── FFF Logo officiel ───────────────────────────────────────────────────────
 function FFFShield({ size = 90 }) {
-  const w = size, h = size * 1.15;
   return (
-    <svg width={w} height={h} viewBox="0 0 200 230" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Hexagone principal bleu marine */}
-      <path d="M100 4 L192 52 L192 178 L100 226 L8 178 L8 52 Z"
-        fill="#002395"/>
-      {/* Bordure or */}
-      <path d="M100 4 L192 52 L192 178 L100 226 L8 178 L8 52 Z"
-        fill="none" stroke="#c8a84b" strokeWidth="4"/>
-      {/* Bande tricolore verticale au centre */}
-      <clipPath id="hex-clip">
-        <path d="M100 4 L192 52 L192 178 L100 226 L8 178 L8 52 Z"/>
-      </clipPath>
-      <g clipPath="url(#hex-clip)">
-        <rect x="8" y="4" width="61" height="224" fill="#002395"/>
-        <rect x="69" y="4" width="62" height="224" fill="white" opacity="0.12"/>
-        <rect x="131" y="4" width="61" height="224" fill="#ED2939" opacity="0.25"/>
-      </g>
-
-      {/* 2 étoiles */}
-      <text x="72" y="38" textAnchor="middle" fill="#c8a84b" fontSize="18" fontWeight="900">★</text>
-      <text x="128" y="38" textAnchor="middle" fill="#c8a84b" fontSize="18" fontWeight="900">★</text>
-
-      {/* Coq gaulois stylisé */}
-      {/* Crête */}
-      <path d="M115 55 C112 48 108 44 105 46 C102 42 97 41 95 45 C91 42 87 45 88 50 C84 48 82 53 85 56 C88 54 91 55 93 58" fill="#c8a84b"/>
-      {/* Tête */}
-      <ellipse cx="100" cy="63" rx="13" ry="11" fill="#c8a84b"/>
-      {/* Bec */}
-      <path d="M87 63 L80 61 L81 66 L87 65 Z" fill="#ED2939"/>
-      {/* Oeil */}
-      <circle cx="94" cy="60" r="2" fill="#002395"/>
-      <circle cx="94" cy="60" r="1" fill="white"/>
-      {/* Barbillons */}
-      <path d="M87 67 C84 67 82 70 84 72 C86 74 89 72 88 69 Z" fill="#ED2939"/>
-      {/* Corps */}
-      <path d="M100 72 C90 73 82 80 80 92 C78 104 80 118 84 128 C88 138 95 143 100 144 C105 143 112 138 116 128 C120 118 122 104 120 92 C118 80 110 73 100 72 Z"
-        fill="#c8a84b"/>
-      {/* Aile gauche */}
-      <path d="M84 90 C74 95 68 108 70 122 C76 115 82 105 84 92 Z" fill="#b8922a"/>
-      {/* Aile droite */}
-      <path d="M116 90 C126 95 132 108 130 122 C124 115 118 105 116 92 Z" fill="#b8922a"/>
-      {/* Patte gauche */}
-      <path d="M92 143 L88 160 L84 165 M88 160 L84 162 M88 160 L90 164" stroke="#c8a84b" strokeWidth="3" strokeLinecap="round"/>
-      {/* Patte droite */}
-      <path d="M108 143 L112 160 L116 165 M112 160 L116 162 M112 160 L110 164" stroke="#c8a84b" strokeWidth="3" strokeLinecap="round"/>
-      {/* Queue */}
-      <path d="M116 95 C124 88 132 82 138 78 C134 86 128 94 122 100 Z" fill="#c8a84b"/>
-      <path d="M116 100 C126 95 136 92 142 90 C136 98 128 104 120 108 Z" fill="#b8922a"/>
-
-      {/* FFF text */}
-      <text x="100" y="200" textAnchor="middle" fill="white"
-        fontSize="22" fontWeight="900" fontFamily="'Arial Black', Arial, sans-serif" letterSpacing="4">
-        FFF
-      </text>
-      {/* Ligne déco sous FFF */}
-      <line x1="60" y1="207" x2="140" y2="207" stroke="#c8a84b" strokeWidth="1.5" opacity="0.6"/>
-    </svg>
+    <img
+      src="https://upload.wikimedia.org/wikipedia/fr/thumb/9/9a/Logo_F%C3%A9d%C3%A9ration_Fran%C3%A7aise_Football_2022.svg/200px-Logo_F%C3%A9d%C3%A9ration_Fran%C3%A7aise_Football_2022.svg.png"
+      alt="Logo FFF"
+      width={size}
+      style={{objectFit:"contain", display:"block"}}
+    />
   );
 }
+
 
 function Home({ setView }) {
   return (
