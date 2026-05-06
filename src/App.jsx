@@ -118,7 +118,7 @@ export default function App() {
       ]);
       const om={}; (o.data||[]).forEach(x=>{om[`${x.pract_id}|${x.date}|${x.time}`]=x.duration||30;});
       const cm={}; (c.data||[]).forEach(x=>{cm[`${x.pract_id}|${x.date}|${x.time}`]=true;});
-      const rm={}; (r.data||[]).forEach(x=>{rm[`${x.pract_id}|dow${x.dow}|${x.time}`]=true;});
+      const rm={}; (r.data||[]).forEach(x=>{rm[`${x.pract_id}|dow${x.dow}|${x.time}`]=x.duration||60;});
       const sm={}; (s.data||[]).forEach(x=>{sm[`${x.pract_id}|${x.date}|${x.base_time}`]=true;});
       const bm={}; const stm={}; const allHistory=[];
       (b.data||[]).forEach(x => {
@@ -312,7 +312,10 @@ export default function App() {
   }
   function getSlotDuration(practId, date, time) {
     const sk = slotKey(practId, date, time);
-    return open[sk] || 30; // duration stockée dans open (30 ou 60)
+    const rk = recurKey(practId, dowOf(date), time);
+    if (open[sk]) return open[sk];
+    if (recurring[rk]) return typeof recurring[rk] === "number" ? recurring[rk] : 60;
+    return 60;
   }
   function isRecurring(practId, date, time) {
     return !!recurring[recurKey(practId, dowOf(date), time)];
@@ -364,15 +367,17 @@ export default function App() {
     await loadAll();
   }
 
-  async function toggleRecurring(practId, date, time) {
+  async function toggleRecurring(practId, date, time, duration=60) {
     const dow = dowOf(date);
     const rk = recurKey(practId, dow, time);
     const sk = slotKey(practId, date, time);
     if (recurring[rk]) {
       await supabase.from("recurring_slots").delete().match({pract_id:practId, dow, time});
     } else {
-      await supabase.from("recurring_slots").upsert({pract_id:practId, dow, time});
+      await supabase.from("recurring_slots").upsert({pract_id:practId, dow, time, duration});
       await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
+      // Aussi ouvrir le créneau du jour courant avec la bonne durée
+      await supabase.from("open_slots").upsert({pract_id:practId, date, time, duration});
     }
     await loadAll();
   }
@@ -1731,7 +1736,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
               if (dvSubMode === "addPlayer") {
                 setStaffTarget({ practId, date, time });
               } else if (dvSubMode === "recurring") {
-                toggleRecurring(practId, date, time);
+                toggleRecurring(practId, date, time, defaultDuration);
               } else if (dvSubMode === "split") {
                 if (!time.endsWith(":30")) toggleSplit(practId, date, time);
               } else {
@@ -2010,8 +2015,8 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         bg = covStrapBooked ? STRAP_COLOR+"44" : STRAP_COLOR+"22";
         bl = `3px solid ${STRAP_COLOR}`;
       } else if (covOpen) {
-        bg = covRec ? k.color+"40" : k.color+"2a";
-        bl = covRec ? `3px solid ${k.color}bb` : `3px solid ${k.color}88`;
+        bg = covRec ? k.color+"14" : k.color+"0c";
+        bl = covRec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
       } else {
         // Fermé (ni ouvert ni réservé) — passé ou non → gris si passé, neutre sinon
         bg = covPast ? "#ccd0e0" : T.surface3+"88";
@@ -2155,8 +2160,8 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         </div>
       );
     } else if (slotOpen) {
-      bg = rec ? k.color+"40" : k.color+"2a";
-      bl = rec ? `3px solid ${k.color}bb` : `3px solid ${k.color}88`;
+      bg = rec ? k.color+"14" : k.color+"0c";
+      bl = rec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
       const dur = getSlotDuration(k.id, date, time);
       indicator = (
         <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:0}}>
