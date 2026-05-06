@@ -1362,22 +1362,21 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
                 <div key={block.id} style={{
                   position:"absolute", left:64, right:0,
                   top, height,
-                  background: block.color+"55",
-                  borderTop: `4px solid ${block.color}`,
-                  borderBottom: `2px solid ${block.color}99`,
-                  borderLeft: `6px solid ${block.color}`,
-                  display:"flex", alignItems:"center", paddingLeft:12,
+                  background: block.color+"18",
+                  borderTop: `2px solid ${block.color}`,
+                  borderBottom: `1px solid ${block.color}44`,
+                  borderLeft: `4px solid ${block.color}`,
+                  display:"flex", alignItems:"center", paddingLeft:16,
                   pointerEvents:"none",
-                  boxShadow:`inset 0 0 0 1px ${block.color}33`,
+                  boxShadow:`inset 0 1px 0 ${block.color}22`,
                 }}>
                   <span style={{
-                    fontSize:14, fontWeight:900, color:"#fff",
-                    background: block.color,
-                    borderRadius:8,
-                    padding:"5px 14px",
-                    boxShadow:`0 2px 8px ${block.color}77`,
+                    fontSize:12, fontWeight:800, color:block.color,
+                    background: block.color+"22",
+                    borderRadius:20,
+                    padding:"3px 10px",
+                    border:`1px solid ${block.color}66`,
                     letterSpacing:0.3,
-                    textShadow:"0 1px 2px rgba(0,0,0,0.3)",
                   }}>{block.label}</span>
                 </div>
               );
@@ -2252,22 +2251,21 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
               position:"absolute",
               left: 64, right: 0,
               top, height,
-              background: block.color+"55",
-              borderTop: `4px solid ${block.color}`,
-              borderBottom: `2px solid ${block.color}99`,
-              borderLeft: `6px solid ${block.color}`,
-              display:"flex", alignItems:"center", paddingLeft:12,
+              background: block.color+"18",
+              borderTop: `2px solid ${block.color}`,
+              borderBottom: `1px solid ${block.color}44`,
+              borderLeft: `4px solid ${block.color}`,
+              display:"flex", alignItems:"center", paddingLeft:16,
               pointerEvents:"none", zIndex:3,
-              boxShadow:`inset 0 0 0 1px ${block.color}33`,
+              boxShadow:`inset 0 1px 0 ${block.color}22`,
             }}>
               <span style={{
-                fontSize:14, fontWeight:900, color:"#fff",
-                background: block.color,
-                borderRadius:8,
-                padding:"5px 14px",
-                boxShadow:`0 2px 8px ${block.color}77`,
+                fontSize:12, fontWeight:800, color:block.color,
+                background: block.color+"22",
+                borderRadius:20,
+                padding:"3px 10px",
+                border:`1px solid ${block.color}66`,
                 letterSpacing:0.3,
-                textShadow:"0 1px 2px rgba(0,0,0,0.3)",
               }}>{block.label}</span>
             </div>
           );
