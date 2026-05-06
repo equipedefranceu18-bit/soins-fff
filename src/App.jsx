@@ -1770,7 +1770,6 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             <span style={css.legendBadge}>🔒 Assigné staff</span>
             <span style={{...css.legendBadge,color:"#ffd166"}}>⚡ ≥21h cascade</span>
             <span style={{...css.legendBadge,color:STRAP_COLOR,border:`1px solid ${STRAP_COLOR}44`}}>🩹 Strap (30')</span>
-            <span style={{...css.legendBadge,color:STRAP_COLOR,border:`1px solid ${STRAP_COLOR}44`}}>🩹 Strap (30')</span>
           </div>
         </>
       )}
@@ -1982,7 +1981,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       let bg, bl;
       if (covPast && !covHasActiveBooking && !(covHasStrap && covStrapBooked)) {
         // Passé sans réservation active → gris uniforme
-        bg = "#ccd0e0"; bl = "3px solid transparent";
+        bg = "#d0d4e4"; bl = "3px solid transparent";
       } else if (covHasActiveBooking) {
         bg = k.color+"44"; bl = `3px solid ${k.color}`;
       } else if (covHasStrap) {
@@ -1993,7 +1992,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         bl = covRec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
       } else {
         // Fermé (ni ouvert ni réservé) — passé ou non → gris si passé, neutre sinon
-        bg = covPast ? "#ccd0e0" : T.surface3+"88";
+        bg = covPast ? "#d0d4e4" : T.surface3+"88";
         bl = "3px solid transparent";
       }
       const covBorderPast = covPast && !covHasActiveBooking && !(covHasStrap && covStrapBooked);
@@ -2038,7 +2037,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
             borderBottom: `1px solid #b8bdd0`,
             borderRight: `1px solid ${T.border}`,
             borderLeft: "3px solid transparent",
-            background: "#ccd0e0",
+            background: "#d0d4e4",
             overflow:"hidden",
           }} />
         );
@@ -2091,8 +2090,8 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       return (
         <div key={`${k.id}-${time}`} style={{
           ...commonStyle,
-          background: isHour ? "#d8dce8" : "#ccd0e0",
-          borderBottom: isHour ? `1px solid #b8bdd0` : `1px solid #c5c9da`,
+          background: "#d0d4e4",
+          borderBottom: `1px solid #b8bdd0`,
           borderLeft: "3px solid transparent",
           cursor: "default",
           display:"flex", alignItems:"center", justifyContent:"center",
@@ -2198,9 +2197,9 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
             <div key={`axis-${time}`} style={{
               height: H30, flexShrink:0,
               background: axisPast
-                ? (time.endsWith(":00") ? "#c8ccdc" : "#bec2d4")
+                ? ("#d0d4e4")
                 : (time.endsWith(":00") ? T.surface2 : T.surface3),
-              borderBottom: time.endsWith(":00") ? `2px solid ${axisPast ? "#adb2c8" : T.border}` : `1px solid ${axisPast ? "#b8bdd0" : T.border2}`,
+              borderBottom: axisPast ? `1px solid #b8bdd0` : (time.endsWith(":00") ? `2px solid ${T.border}` : `1px solid ${T.border2}`),
               borderRight:`1px solid ${T.border}`,
               display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 8px",
             }}>
