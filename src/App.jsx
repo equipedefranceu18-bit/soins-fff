@@ -364,7 +364,7 @@ export default function App() {
       }
     } else {
       await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
-      await supabase.from("open_slots").upsert({pract_id:practId, date, time, duration});
+      await supabase.from("open_slots").upsert({pract_id:practId, date, time, duration}, {onConflict:"pract_id,date,time"});
     }
     await loadAll();
   }
@@ -376,17 +376,15 @@ export default function App() {
     if (recurring[rk]) {
       await supabase.from("recurring_slots").delete().match({pract_id:practId, dow, time});
     } else {
-      await supabase.from("recurring_slots").upsert({pract_id:practId, dow, time, duration});
+      await supabase.from("recurring_slots").upsert({pract_id:practId, dow, time, duration}, {onConflict:"pract_id,dow,time"});
       await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
-      // Aussi ouvrir le créneau du jour courant avec la bonne durée
-      await supabase.from("open_slots").upsert({pract_id:practId, date, time, duration});
     }
     await loadAll();
   }
 
   async function staffBookSlot(practId, date, time, player) {
     const is30 = time.endsWith(":30") || isSplit(practId, date, time);
-    await supabase.from("open_slots").upsert({pract_id:practId, date, time});
+    await supabase.from("open_slots").upsert({pract_id:practId, date, time}, {onConflict:"pract_id,date,time"});
     await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
     // Supprimer d'abord toute réservation active (non annulée) sur ce créneau
     await supabase.from("bookings").delete().match({pract_id:practId, date, time}).eq("cancelled", false);
@@ -410,7 +408,7 @@ export default function App() {
     const bk = getBooking(fromPractId, date, time);
     if (!bk) return;
     await supabase.from("bookings").delete().match({pract_id:fromPractId, date, time});
-    await supabase.from("open_slots").upsert({pract_id:toPractId, date, time});
+    await supabase.from("open_slots").upsert({pract_id:toPractId, date, time}, {onConflict:"pract_id,date,time"});
     await supabase.from("closed_slots").delete().match({pract_id:toPractId, date, time});
     await supabase.from("bookings").upsert({pract_id:toPractId, date, time, player:bk.player, locked:bk.locked, note:bk.note, duration:bk.duration}, {onConflict:"pract_id,date,time"});
     await loadAll();
