@@ -293,9 +293,11 @@ export default function App() {
       const hasSplit = splitSlots[splitKey(practId, date, base)];
       const baseOpen = isSlotOpen(practId, date, base) || !!getBooking(practId, date, base);
       const halfOpen = isSlotOpen(practId, date, half) || !!getBooking(practId, date, half);
+      // Si le créneau de base est ouvert avec durée 1h, inclure automatiquement le :30
+      const baseDur = baseOpen ? getSlotDuration(practId, date, base) : 0;
       
       if (baseOpen) result.push(base);
-      if (hasSplit || halfOpen) result.push(half);
+      if (hasSplit || halfOpen || (baseOpen && baseDur === 60)) result.push(half);
     }
     return result;
   }
