@@ -187,7 +187,6 @@ export default function App() {
   const [staffAuth,       setStaffAuth]       = useState(false);
   const [staffPract,      setStaffPract]      = useState(PRACTITIONERS[0].id);
   const [staffTarget,     setStaffTarget]     = useState(null);
-  const [staffDefaultDuration, setStaffDefaultDuration] = useState(60);
   const [staffPlayerName, setStaffPlayerName] = useState("");
 
   // History view (staff)
@@ -1490,6 +1489,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
   scheduleBlocks, addScheduleBlock, deleteScheduleBlock, PLAYERS, setView }) {
 
   const [dvSubMode, setDvSubMode] = useState("slots");
+  const [staffDefaultDuration, setStaffDefaultDuration] = useState(60);
   const [showStats, setShowStats] = useState(false);
   const [staffViewDay, setStaffViewDay] = useState(todayStr());
   const [noteModal,    setNoteModal]    = useState(null);
@@ -1676,6 +1676,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           addScheduleBlock={addScheduleBlock}
           deleteScheduleBlock={deleteScheduleBlock}
           onDurationChange={setStaffDefaultDuration}
+
         />
       )}
 
