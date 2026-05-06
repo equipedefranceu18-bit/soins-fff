@@ -2010,8 +2010,8 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         bg = covStrapBooked ? STRAP_COLOR+"44" : STRAP_COLOR+"22";
         bl = `3px solid ${STRAP_COLOR}`;
       } else if (covOpen) {
-        bg = covRec ? k.color+"14" : k.color+"0c";
-        bl = covRec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
+        bg = covRec ? k.color+"40" : k.color+"2a";
+        bl = covRec ? `3px solid ${k.color}bb` : `3px solid ${k.color}88`;
       } else {
         // Fermé (ni ouvert ni réservé) — passé ou non → gris si passé, neutre sinon
         bg = covPast ? "#ccd0e0" : T.surface3+"88";
@@ -2155,8 +2155,8 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         </div>
       );
     } else if (slotOpen) {
-      bg = rec ? k.color+"14" : k.color+"0c";
-      bl = rec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
+      bg = rec ? k.color+"40" : k.color+"2a";
+      bl = rec ? `3px solid ${k.color}bb` : `3px solid ${k.color}88`;
       const dur = getSlotDuration(k.id, date, time);
       indicator = (
         <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:0}}>
