@@ -451,13 +451,14 @@ export default function App() {
       try {
         await fetch("https://ntfy.sh/soins-fff-staff-2026", {
           method: "POST",
+          mode: "no-cors",
           headers: {
-            "Title": "❌ Annulation RDV",
+            "Title": "Annulation RDV",
             "Priority": "high",
             "Tags": "rotating_light",
             "Content-Type": "text/plain",
           },
-          body: `${cancelledPlayer} annule son RDV\n📅 ${dateLabel} à ${time}\n👨‍⚕️ ${practName}\n\nCréneau maintenant libre !`,
+          body: `${cancelledPlayer} annule son RDV - ${dateLabel} a ${time} - ${practName} - Creneau libre !`,
         });
       } catch(e) { /* silencieux si hors ligne */ }
       await loadAll();
