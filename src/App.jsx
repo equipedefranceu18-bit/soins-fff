@@ -961,7 +961,15 @@ function ByPractGrid({ practitioners, days, selectedPract, onPractSelect, select
                     const avail    = isAvailable(selectedPract, date, time);
                     const slotOpen = isSlotOpen(selectedPract, date, time);
                     const booking  = getBooking(selectedPract, date, time);
-                    const past     = isPast(date);
+                    const today    = todayStr();
+                    const isPastSlot = (() => {
+                      if (date < today) return true;
+                      if (date > today) return false;
+                      const [h, m] = time.split(":").map(Number);
+                      const now = new Date();
+                      return h < now.getHours() || (h === now.getHours() && m <= now.getMinutes());
+                    })();
+                    const past     = isPastSlot;
                     const sel      = selectedDate===date && selectedTime===time;
                     const color    = PRACTITIONERS.find(x=>x.id===selectedPract)?.color;
                     const we       = isWeekend(d);
@@ -1358,7 +1366,7 @@ function PlayerSlotCell({ avail, slotOpen, booking, past, selected, color, weeke
         </div>
       );
     }
-    return <div style={{...css.slotCell,height:h,background:weBg,opacity:0.08,cursor:"default"}} />;
+    return <div style={{...css.slotCell,height:h,background:"#1a1e2a",opacity:0.55,cursor:"default"}} />;
   }
 
   if (!slotOpen && !booking) {
