@@ -1096,8 +1096,6 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     if (hasStrap && !booked && !open) {
       const s = strapSlots[strapKey];
       const strapBooked = !!(s && s.player);
-      // Strap passé non réservé → on masque le bouton (fond gris suffit)
-      if (isTimePast(time) && !strapBooked) return null;
       const strapAvail = isStrapAvailable(p.id, d, time);
       const strapPId = STRAP_ID + "_" + p.id;
       const sel = selectedPract === strapPId && selectedDate === d && selectedTime === time;
@@ -1126,10 +1124,6 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
     }
 
     if (!booked && !open) return null;
-
-    const timePast = isTimePast(time);
-    // Créneau passé sans réservation → invisible (le fond gris de la cellule suffit)
-    if (timePast && !booked) return null;
 
     const avail   = isAvailable(p.id, d, time);
     const sel     = selectedPract===p.id && selectedDate===d && selectedTime===time;
