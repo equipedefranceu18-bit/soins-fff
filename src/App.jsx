@@ -1350,7 +1350,7 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
             {osteos.map(p => <OsteoColumn key={p.id} p={p} />)}
           </div>
           {/* Bandeaux planning overlay */}
-          <div style={{position:"absolute", top:0, bottom:0, left:64, right:0, pointerEvents:"none", zIndex:2}}>
+          <div style={{position:"absolute", top:0, bottom:0, left:0, right:0, pointerEvents:"none", zIndex:2}}>
             {dayBlocks.map(block => {
               const startIdx = baseTimes.indexOf(block.time_start.slice(0,5));
               const endIdx = baseTimes.indexOf(block.time_end.slice(0,5));
@@ -1360,19 +1360,24 @@ function BySlotGrid({ practitioners, kines, days, selectedPract, selectedDate, s
               const height = endIdx >= 0 ? (endIdx - startIdx) * ROW_H : ROW_H;
               return (
                 <div key={block.id} style={{
-                  position:"absolute", left:0, right:0,
+                  position:"absolute", left:64, right:0,
                   top, height,
-                  background: block.color+"33",
-                  borderTop: `3px solid ${block.color}`,
-                  borderBottom: `2px solid ${block.color}55`,
+                  background: block.color+"55",
+                  borderTop: `4px solid ${block.color}`,
+                  borderBottom: `2px solid ${block.color}99`,
+                  borderLeft: `6px solid ${block.color}`,
                   display:"flex", alignItems:"center", paddingLeft:12,
                   pointerEvents:"none",
+                  boxShadow:`inset 0 0 0 1px ${block.color}33`,
                 }}>
                   <span style={{
-                    fontSize:12, fontWeight:800, color:block.color,
-                    background: block.color+"22", borderRadius:6,
-                    padding:"3px 10px", border:`1px solid ${block.color}55`,
-                    boxShadow:`0 1px 4px ${block.color}33`,
+                    fontSize:14, fontWeight:900, color:"#fff",
+                    background: block.color,
+                    borderRadius:8,
+                    padding:"5px 14px",
+                    boxShadow:`0 2px 8px ${block.color}77`,
+                    letterSpacing:0.3,
+                    textShadow:"0 1px 2px rgba(0,0,0,0.3)",
                   }}>{block.label}</span>
                 </div>
               );
@@ -2247,16 +2252,22 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
               position:"absolute",
               left: 64, right: 0,
               top, height,
-              background: block.color+"28",
-              borderTop: `3px solid ${block.color}88`,
-              borderBottom: `2px solid ${block.color}44`,
-              display:"flex", alignItems:"center", paddingLeft:16,
+              background: block.color+"55",
+              borderTop: `4px solid ${block.color}`,
+              borderBottom: `2px solid ${block.color}99`,
+              borderLeft: `6px solid ${block.color}`,
+              display:"flex", alignItems:"center", paddingLeft:12,
               pointerEvents:"none", zIndex:3,
+              boxShadow:`inset 0 0 0 1px ${block.color}33`,
             }}>
               <span style={{
-                fontSize:12, fontWeight:800, color:"#fff",
-                background: block.color+"dd", borderRadius:6,
-                padding:"3px 12px", boxShadow:`0 1px 6px ${block.color}55`,
+                fontSize:14, fontWeight:900, color:"#fff",
+                background: block.color,
+                borderRadius:8,
+                padding:"5px 14px",
+                boxShadow:`0 2px 8px ${block.color}77`,
+                letterSpacing:0.3,
+                textShadow:"0 1px 2px rgba(0,0,0,0.3)",
               }}>{block.label}</span>
             </div>
           );
