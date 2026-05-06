@@ -449,17 +449,13 @@ export default function App() {
       await supabase.from("bookings").update({ cancelled: true, player: "", cancelled_player: cancelledPlayer, cancelled_at: new Date().toISOString() }).eq("pract_id",practId).eq("date",date).eq("time",time);
       // Notification ntfy
       try {
-        await fetch("https://ntfy.sh/soins-fff-staff-2026", {
+        // ntfy via POST simple sans headers custom (compatibilite CORS)
+        const ntfyBody = `ANNULATION RDV\n${cancelledPlayer} - ${dateLabel} a ${time}\n${practName}\nCreneau libre !`;
+        fetch("https://ntfy.sh/soins-fff-staff-2026", {
           method: "POST",
           mode: "no-cors",
-          headers: {
-            "Title": "Annulation RDV",
-            "Priority": "high",
-            "Tags": "rotating_light",
-            "Content-Type": "text/plain",
-          },
-          body: `${cancelledPlayer} annule son RDV - ${dateLabel} a ${time} - ${practName} - Creneau libre !`,
-        });
+          body: ntfyBody,
+        }).catch(()=>{});
       } catch(e) { /* silencieux si hors ligne */ }
       await loadAll();
     }
