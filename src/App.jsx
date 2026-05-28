@@ -441,13 +441,13 @@ export default function App() {
     await loadAll();
   }
 
-  async function staffBookSlot(practId, date, time, player) {
-    const is30 = time.endsWith(":30") || isSplit(practId, date, time);
-    await supabase.from("open_slots").upsert({pract_id:practId, date, time}, {onConflict:"pract_id,date,time"});
+  async function staffBookSlot(practId, date, time, player, duration) {
+    const is30 = duration ? duration===30 : (time.endsWith(":30") || isSplit(practId, date, time));
+    const dur = is30 ? 30 : 60;
+    await supabase.from("open_slots").upsert({pract_id:practId, date, time, duration:dur}, {onConflict:"pract_id,date,time"});
     await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
-    // Supprimer d'abord toute réservation active (non annulée) sur ce créneau
     await supabase.from("bookings").delete().match({pract_id:practId, date, time}).eq("cancelled", false);
-    await supabase.from("bookings").insert({pract_id:practId, date, time, player, locked:true, note:"", duration:is30?30:60, booked_at:new Date().toISOString(), cancelled:false});
+    await supabase.from("bookings").insert({pract_id:practId, date, time, player, locked:true, note:"", duration:dur, booked_at:new Date().toISOString(), cancelled:false});
     await loadAll();
   }
 
@@ -1781,7 +1781,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
                 <div style={{maxHeight:260, overflowY:"auto"}}>
                   {PLAYERS.map(p => (
                     <div key={p} onClick={()=>{
-                      staffBookSlot(contextMenu.practId, contextMenu.date, contextMenu.time, p);
+                      staffBookSlot(contextMenu.practId, contextMenu.date, contextMenu.time, p, staffDefaultDuration);
                       setContextMenu(null); setStaffTarget(null);
                     }} style={{
                       padding:"8px 12px", fontSize:13, fontWeight:600, cursor:"pointer",
