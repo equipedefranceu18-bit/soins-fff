@@ -2071,7 +2071,10 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     const prevTime = displayTimes[idx - 1];
     const prevOpen = isSlotOpen(k.id, date, prevTime);
     const prevBooking = getBooking(k.id, date, prevTime);
-    const prevDur = getSlotDuration(k.id, date, prevTime);
+    // La durée effective : priorité à la réservation, puis open_slots, puis récurrence
+    const prevBookingDur = prevBooking ? (prevBooking.duration || 60) : null;
+    const prevOpenDur = open[slotKey(k.id, date, prevTime)] || null;
+    const prevDur = prevBookingDur || prevOpenDur || getSlotDuration(k.id, date, prevTime);
     if ((prevOpen || prevBooking) && prevDur === 60) return prevTime;
     return null;
   }
