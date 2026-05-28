@@ -28,7 +28,31 @@ const PLAYERS = [
 const STAFF_PASSWORD = "staff2024";
 const STRAP_COLOR = "#ff7043";
 const CRYO_COLOR = "#4fc3f7";
-const CRYO_COLS = [{id:"cryo1", label:"Cryo A"}, {id:"cryo2", label:"Cryo B"}]; // Orange unique straps
+const CRYO_COLS = [{id:"cryo1", label:"Cryo A"}, {id:"cryo2", label:"Cryo B"}];
+
+const T = {
+  navy:    "#002395",
+  navyDk:  "#001a6e",
+  navyLt:  "#1a4fd6",
+  red:     "#ED2939",
+  redDk:   "#b01020",
+  white:   "#ffffff",
+  gold:    "#9a6e00",
+  goldBright: "#c8a84b",
+  goldDim: "rgba(154,110,0,0.25)",
+  bg:      "#f0f4ff",        // very light blue-white
+  surface: "#ffffff",        // pure white cards
+  surface2:"#e8edf8",        // slightly blue-tinted hover
+  surface3:"#dde4f5",        // deeper tint for headers
+  border:  "rgba(0,35,149,0.15)",
+  border2: "rgba(0,35,149,0.10)",
+  text:    "#0a1440",        // very dark navy text
+  textDim: "#4a5a8a",        // muted navy
+  textMid: "#1a2e6e",
+  slotFree:"#e8f4ff",        // light blue for available slots
+  slotBooked:"#e8f5e9",      // light green for booked
+};
+ // Orange unique straps
 const STRAP_ID = "strap";    // pract_id virtuel en Supabase
 const BOOKING_ADVANCE_HOURS = 24;
 const CASCADE_AFTER_HOUR = 21; // slots from this hour onward require previous to be booked first
@@ -2557,7 +2581,6 @@ function NoteModal({ note, player, date, time, pract, onSave, onClose }) {
 // ─── Stats Modal ──────────────────────────────────────────────────────────────
 // ─── Cryo Planning ───────────────────────────────────────────────────────────
 function CryoPlanning({ date, cryoSlots, players, loadAll }) {
-  const T = THEME;
   const SLOT_H = 36;
   const [assignModal, setAssignModal] = useState(null); // {colId, time}
   const [editPlayer, setEditPlayer] = useState("");
@@ -2925,28 +2948,6 @@ function StatsModal({ onClose, bookings, practitioners, bookingHistory, strapSlo
 
 // ─── THEME CONSTANTS (Light) ──────────────────────────────────────────────────
 // France: Navy #002395 · White · Red #ED2939 · Gold #c8a84b  — Light mode
-const T = {
-  navy:    "#002395",
-  navyDk:  "#001a6e",
-  navyLt:  "#1a4fd6",
-  red:     "#ED2939",
-  redDk:   "#b01020",
-  white:   "#ffffff",
-  gold:    "#9a6e00",
-  goldBright: "#c8a84b",
-  goldDim: "rgba(154,110,0,0.25)",
-  bg:      "#f0f4ff",        // very light blue-white
-  surface: "#ffffff",        // pure white cards
-  surface2:"#e8edf8",        // slightly blue-tinted hover
-  surface3:"#dde4f5",        // deeper tint for headers
-  border:  "rgba(0,35,149,0.15)",
-  border2: "rgba(0,35,149,0.10)",
-  text:    "#0a1440",        // very dark navy text
-  textDim: "#4a5a8a",        // muted navy
-  textMid: "#1a2e6e",
-  slotFree:"#e8f4ff",        // light blue for available slots
-  slotBooked:"#e8f5e9",      // light green for booked
-};
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const css = {
