@@ -1549,6 +1549,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
 
   const [dvSubMode, setDvSubMode] = useState("slots");
   const [staffDefaultDuration, setStaffDefaultDuration] = useState(60);
+  const [contextMenu, setContextMenu] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [staffViewDay, setStaffViewDay] = useState(todayStr());
   const [noteModal,    setNoteModal]    = useState(null);
@@ -1760,32 +1761,37 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
       {/* ── CALENDAR MODES ── */}
       {dvSubMode !== "history" && dvSubMode !== "planning" && dvSubMode !== "cryo" && (
         <>
-          {/* Assign player panel */}
-          {dvSubMode==="addPlayer" && staffTarget && (
-            <div style={css.addPlayerPanel}>
-              <div style={{fontWeight:600,marginBottom:8,fontSize:14}}>
-                Assigner · <span style={{color: kines4.find(k=>k.id===staffTarget.practId)?.color}}>
-                  {kines4.find(k=>k.id===staffTarget.practId)?.name}
-                </span> · {staffTarget.time}
-              </div>
-              <select style={css.select} value={staffPlayerName} onChange={e=>setStaffPlayerName(e.target.value)}>
-                <option value="">-- Choisir un joueur --</option>
-                {PLAYERS.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <div style={{display:"flex",gap:8,marginTop:8}}>
-                <button style={{...css.btn,...css.btnConfirm}}
-                  onClick={()=>{
-                    if(staffTarget && staffPlayerName){
-                      staffBookSlot(staffTarget.practId, staffTarget.date, staffTarget.time, staffPlayerName);
-                      setStaffTarget(null); setStaffPlayerName("");
-                    }
-                  }} disabled={!staffPlayerName}>
-                  Confirmer 🔒
-                </button>
-                <button style={{...css.btn,background:"#21262d",color:"#8b949e",fontSize:14,padding:"10px 16px"}}
-                  onClick={()=>{ setStaffTarget(null); setStaffPlayerName(""); }}>
-                  Annuler
-                </button>
+          {/* Menu contextuel assignation */}
+          {contextMenu && (
+            <div style={{position:"fixed",inset:0,zIndex:100}} onClick={()=>{ setContextMenu(null); setStaffTarget(null); }}>
+              <div style={{
+                position:"fixed",
+                left: Math.min(contextMenu.x + 4, window.innerWidth - 220),
+                top: Math.min(contextMenu.y + 4, window.innerHeight - 340),
+                width:200, background:"#fff", borderRadius:12,
+                boxShadow:"0 8px 32px rgba(0,35,149,0.2)", border:`1px solid ${T.border}`,
+                zIndex:101, overflow:"hidden",
+              }} onClick={e=>e.stopPropagation()}>
+                <div style={{padding:"8px 12px", fontSize:11, fontWeight:700, color:T.textDim, background:T.surface2, borderBottom:`1px solid ${T.border}`}}>
+                  <span style={{color: kines4.find(k=>k.id===contextMenu.practId)?.color}}>
+                    {kines4.find(k=>k.id===contextMenu.practId)?.name}
+                  </span> · {contextMenu.time}
+                </div>
+                <div style={{maxHeight:260, overflowY:"auto"}}>
+                  {PLAYERS.map(p => (
+                    <div key={p} onClick={()=>{
+                      staffBookSlot(contextMenu.practId, contextMenu.date, contextMenu.time, p);
+                      setContextMenu(null); setStaffTarget(null);
+                    }} style={{
+                      padding:"8px 12px", fontSize:13, fontWeight:600, cursor:"pointer",
+                      color:T.text, borderBottom:`1px solid ${T.border2}`, background:"#fff",
+                    }}
+                    onMouseEnter={e=>e.currentTarget.style.background=T.surface2}
+                    onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                      {p}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -1802,7 +1808,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             strapSlots={strapSlots}
             toggleStrap={toggleStrap}
             scheduleBlocks={scheduleBlocks}
-            onCellClick={(practId, date, time, duration) => {
+            onCellClick={(practId, date, time, duration, e) => {
               if (dvSubMode === "straps") {
                 const p = practitioners.find(x => x.id === practId);
                 if (p && p.role === "kiné") toggleStrap(practId, date, time);
@@ -1815,6 +1821,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
               }
               if (dvSubMode === "addPlayer") {
                 setStaffTarget({ practId, date, time });
+                if (e) setContextMenu({ x: e.clientX, y: e.clientY, practId, date, time });
               } else if (dvSubMode === "recurring") {
                 toggleRecurring(practId, date, time, staffDefaultDuration);
               } else if (dvSubMode === "split") {
@@ -2028,22 +2035,20 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     return { booking, slotOpen, rec };
   }
 
-  function handleCellClick(practId, time) {
+  function handleCellClick(practId, time, e) {
     if (isPastDay) return;
     const { slotOpen, booking } = getSlotStatus(kines.find(k=>k.id===practId), time);
     if (booking) {
-      onCellClick(practId, date, time);
+      onCellClick(practId, date, time, null, e);
     } else if (slotOpen) {
-      onCellClick(practId, date, time);
+      onCellClick(practId, date, time, null, e);
     } else {
-      // Ouvrir directement avec la durée sélectionnée via les onglets
-      openWithDuration(defaultDuration, practId, time);
+      openWithDuration(defaultDuration, practId, time, e);
     }
   }
 
-  async function openWithDuration(duration, practId, time) {
-    // Un seul appel en base — duration=60 ou 30 stockée dans open_slots
-    onCellClick(practId, date, time, duration);
+  async function openWithDuration(duration, practId, time, e) {
+    onCellClick(practId, date, time, duration, e);
   }
 
   // Toujours H30 — alignement parfait garanti entre toutes les colonnes
@@ -2265,7 +2270,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         display:"flex", alignItems:"center", justifyContent:"center",
         cursor: isPastDay ? "default" : "pointer",
       }}
-        onClick={() => !isPastDay && handleCellClick(k.id, time)}
+        onClick={(e) => !isPastDay && handleCellClick(k.id, time, e)}
         title={booking ? `${booking.player}` : slotOpen ? `Ouvert ${getSlotDuration(k.id,date,time)===60?"1h":"30'"}` : "Fermé — cliquer pour ouvrir"}>
         {indicator}
 
