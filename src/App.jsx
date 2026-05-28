@@ -2593,19 +2593,18 @@ function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
 
   function checkConflict(player, time) {
     const slotMin = parseInt(time.split(":")[0])*60 + parseInt(time.split(":")[1]);
-    // Vérifier soins
+    // Vérifier soins du même jour
     for (const [k,v] of Object.entries(bookings||{})) {
       const parts = k.split("|");
       if (parts[1] !== date || v.cancelled || v.player !== player) continue;
       const tMin = parseInt(parts[2].split(":")[0])*60 + parseInt(parts[2].split(":")[1]);
       if (Math.abs(tMin - slotMin) < 20) return `${player} a un soin à ${parts[2]}`;
     }
-    // Vérifier cryo
+    // Bloquer si le joueur a déjà UN créneau cryo ce jour-là (quel que soit l'heure)
     for (const [k,v] of Object.entries(cryoSlots||{})) {
       const parts = k.split("|");
       if (parts[1] !== date || !v.player || v.player !== player) continue;
-      const tMin = parseInt(parts[2].split(":")[0])*60 + parseInt(parts[2].split(":")[1]);
-      if (Math.abs(tMin - slotMin) < 20) return `${player} est déjà en cryo à ${parts[2]}`;
+      return `${player} a déjà une cryo à ${parts[2]} aujourd'hui`;
     }
     return null;
   }
@@ -2655,8 +2654,8 @@ function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
   }
 
   async function unassignPlayer(colId, time) {
-    await supabase.from("cryo_slots").update({player:""}).match({col_id:colId, date, time});
-    loadAll();
+    await supabase.from("cryo_slots").delete().match({col_id:colId, date, time});
+    await loadAll();
   }
 
   const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
