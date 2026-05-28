@@ -2606,11 +2606,13 @@ function CryoPlanning({ date, cryoSlots, players, loadAll }) {
     const key = `${colId}|${date}|${time}`;
     const existing = cryoSlots[key];
     if (existing !== undefined) {
-      await supabase.from("cryo_slots").delete().match({col_id:colId, date, time});
+      const {error} = await supabase.from("cryo_slots").delete().match({col_id:colId, date, time});
+      if (error) console.error("cryo delete:", error.message);
     } else {
-      await supabase.from("cryo_slots").insert({col_id:colId, date, time, player:"", locked:false});
+      const {error} = await supabase.from("cryo_slots").insert({col_id:colId, date, time, player:"", locked:false});
+      if (error) console.error("cryo insert:", error.message);
     }
-    loadAll();
+    await loadAll();
   }
 
   async function assignPlayer(colId, time, player) {
@@ -2643,6 +2645,7 @@ function CryoPlanning({ date, cryoSlots, players, loadAll }) {
           {times.map(time => {
             const past = isTimePast(time);
             const isHour = time.endsWith(":00");
+            const is20 = time.endsWith(":20");
             return (
               <div key={time} style={{
                 height:SLOT_H, flexShrink:0,
@@ -2681,9 +2684,11 @@ function CryoPlanning({ date, cryoSlots, players, loadAll }) {
                 const past = isTimePast(time);
                 const isHour = time.endsWith(":00");
                 const is20 = time.endsWith(":20");
-                const bg = past ? (isHour ? "#d0d4e4" : "#ccd0e0")
-                  : isOpen ? (hasPlayer ? colColor+"55" : colColor+"22")
-                  : (isHour ? T.surface : T.surface3+"88");
+                const bg = past
+                  ? (isHour ? "#d0d4e4" : "#ccd0e0")
+                  : isOpen
+                    ? (hasPlayer ? colColor+"55" : colColor+"22")
+                    : (isHour ? T.surface : is20 ? T.surface2 : T.surface3+"88");
 
                 return (
                   <div key={time} onClick={() => { if (past) return; if (!isOpen) toggleSlot(col.id, time); else if (!hasPlayer) { setAssignModal({colId:col.id, time}); setEditPlayer(""); } }}
