@@ -146,7 +146,7 @@ export default function App() {
         supabase.from("split_slots").select("*"),
         supabase.from("bookings").select("*"),
       ]);
-      const om={}; (o.data||[]).forEach(x=>{om[`${x.pract_id}|${x.date}|${x.time}`]=x.duration||30;});
+      const om={}; (o.data||[]).forEach(x=>{om[`${x.pract_id}|${x.date}|${x.time}`]=x.duration||60;});
       const cm={}; (c.data||[]).forEach(x=>{cm[`${x.pract_id}|${x.date}|${x.time}`]=true;});
       const rm={}; (r.data||[]).forEach(x=>{rm[`${x.pract_id}|dow${x.dow}|${x.time}`]=x.duration||60;});
       const sm={}; (s.data||[]).forEach(x=>{sm[`${x.pract_id}|${x.date}|${x.base_time}`]=true;});
