@@ -2065,17 +2065,24 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
 
   // Retourne le time du slot 1h qui "couvre" cette ligne (la 2e moitié d'un bloc 1h)
   function getCoveringSlot(k, time) {
-    // Trouver le créneau précédent dans displayTimes
     const idx = displayTimes.indexOf(time);
     if (idx <= 0) return null;
     const prevTime = displayTimes[idx - 1];
     const prevOpen = isSlotOpen(k.id, date, prevTime);
     const prevBooking = getBooking(k.id, date, prevTime);
-    // La durée effective : priorité à la réservation, puis open_slots, puis récurrence
-    const prevBookingDur = prevBooking ? (prevBooking.duration || 60) : null;
-    const prevOpenDur = open[slotKey(k.id, date, prevTime)] || null;
-    const prevDur = prevBookingDur || prevOpenDur || getSlotDuration(k.id, date, prevTime);
-    if ((prevOpen || prevBooking) && prevDur === 60) return prevTime;
+    if (!prevOpen && !prevBooking) return null;
+    // Durée : lire d'abord staffDefaultDuration via open_slots (durée réelle stockée)
+    // Si booking existe, sa durée fait foi
+    const prevOpenDur = open[slotKey(k.id, date, prevTime)];
+    if (prevBooking) {
+      // Durée de la réservation : si open_slots a été mis à jour avec dur=30, utiliser ça
+      const dur = prevOpenDur || prevBooking.duration || 60;
+      if (dur === 60) return prevTime;
+      return null;
+    }
+    // Pas de booking : créneau ouvert sans joueur
+    const dur = prevOpenDur || getSlotDuration(k.id, date, prevTime);
+    if (dur === 60) return prevTime;
     return null;
   }
 
