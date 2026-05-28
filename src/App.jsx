@@ -26,7 +26,9 @@ const PLAYERS = [
 ];
 
 const STAFF_PASSWORD = "staff2024";
-const STRAP_COLOR = "#ff7043"; // Orange unique straps
+const STRAP_COLOR = "#ff7043";
+const CRYO_COLOR = "#4fc3f7";
+const CRYO_COLS = [{id:"cryo1", label:"Cryo A"}, {id:"cryo2", label:"Cryo B"}]; // Orange unique straps
 const STRAP_ID = "strap";    // pract_id virtuel en Supabase
 const BOOKING_ADVANCE_HOURS = 24;
 const CASCADE_AFTER_HOUR = 21; // slots from this hour onward require previous to be booked first
@@ -105,7 +107,8 @@ export default function App() {
   const [closed,     setClosed]     = useState({});
   const [bookings,   setBookings]   = useState({});
   const [splitSlots, setSplitSlots] = useState({});
-  const [strapSlots, setStrapSlots] = useState({}); // { "date|time": true }
+  const [strapSlots, setStrapSlots] = useState({});
+  const [cryoSlots, setCryoSlots] = useState({}); // { "date|time": true }
   const [scheduleBlocks, setScheduleBlocks] = useState([]); // [{id, date, time_start, time_end, label, color}]
   const [bookingHistory, setBookingHistory] = useState([]); // toutes les lignes brutes (y compris annulées)
   const [dbReady,    setDbReady]    = useState(false);
@@ -147,7 +150,10 @@ export default function App() {
         }
       });
       const sb = await supabase.from("schedule_blocks").select("*");
+      const cryo = await supabase.from("cryo_slots").select("*");
+      const cym={}; (cryo.data||[]).forEach(x=>{ cym[`${x.col_id}|${x.date}|${x.time}`]={player:x.player||"",locked:x.locked||false}; });
       setOpen(om); setClosed(cm); setRecurring(rm); setSplitSlots(sm); setBookings(bm); setStrapSlots(stm); setBookingHistory(allHistory);
+      setCryoSlots(cym);
       setScheduleBlocks(sb.data||[]);
       setDbReady(true);
     } catch(e) { console.warn("Supabase:",e.message); setDbReady(true); }
@@ -168,6 +174,7 @@ export default function App() {
       .on("postgres_changes",{event:"*",schema:"public",table:"recurring_slots"},loadAll)
       .on("postgres_changes",{event:"*",schema:"public",table:"split_slots"},loadAll)
       .on("postgres_changes",{event:"*",schema:"public",table:"bookings"},loadAll)
+      .on("postgres_changes",{event:"*",schema:"public",table:"cryo_slots"},loadAll)
       .subscribe();
     return () => supabase.removeChannel(ch);
   }, [loadAll]);
@@ -568,6 +575,7 @@ export default function App() {
           bookings={bookings}
           bookingHistory={bookingHistory}
           strapSlots={strapSlots} toggleStrap={toggleStrap}
+          cryoSlots={cryoSlots} setCryoSlots={setCryoSlots} loadAll={loadAll}
           scheduleBlocks={scheduleBlocks} addScheduleBlock={addScheduleBlock} deleteScheduleBlock={deleteScheduleBlock}
           PLAYERS={PLAYERS} setView={setView}
         />
@@ -1512,7 +1520,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
   unbook, staffBookSlot, addNote, moveBooking, staffTarget, setStaffTarget,
   staffPlayerName, setStaffPlayerName,
   getSlotsForContext, isSplit, toggleSplit, BASE_SLOTS, isHalfSlot,
-  getPastBookings, getSlotDuration, bookings, bookingHistory, strapSlots, toggleStrap,
+  getPastBookings, getSlotDuration, bookings, bookingHistory, strapSlots, toggleStrap, cryoSlots, setCryoSlots,
   scheduleBlocks, addScheduleBlock, deleteScheduleBlock, PLAYERS, setView }) {
 
   const [dvSubMode, setDvSubMode] = useState("slots");
@@ -1629,6 +1637,14 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           onClick={()=>{ setDvSubMode(dvSubMode==="planning"?"slots":"planning"); setStaffTarget(null); }}>
           🏃 Planning
         </button>
+        <button style={{
+          ...css.staffActBtn,
+          background: dvSubMode==="cryo" ? CRYO_COLOR+"33" : "#e8f7fd",
+          border: dvSubMode==="cryo" ? `2px solid ${CRYO_COLOR}` : `1px solid ${CRYO_COLOR}66`,
+          color: CRYO_COLOR, fontWeight:800,
+        }} onClick={()=>{ setDvSubMode(dvSubMode==="cryo"?"slots":"cryo"); setStaffTarget(null); }}>
+          ❄️ Cryo
+        </button>
         <button style={{...css.staffActBtn, background:"#f0f4ff", border:`1px solid ${T.navy}44`, color:T.navy}}
           onClick={()=>setShowStats(true)}>
           📊 Stats
@@ -1695,6 +1711,16 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
         </div>
       )}
 
+      {/* ── CRYO MODE ── */}
+      {dvSubMode === "cryo" && (
+        <CryoPlanning
+          date={dvDate}
+          cryoSlots={cryoSlots}
+          players={PLAYERS}
+          loadAll={loadAll}
+        />
+      )}
+
       {/* ── PLANNING MODE ── */}
       {dvSubMode === "planning" && (
         <PlanningEditor
@@ -1708,7 +1734,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
       )}
 
       {/* ── CALENDAR MODES ── */}
-      {dvSubMode !== "history" && dvSubMode !== "planning" && (
+      {dvSubMode !== "history" && dvSubMode !== "planning" && dvSubMode !== "cryo" && (
         <>
           {/* Assign player panel */}
           {dvSubMode==="addPlayer" && staffTarget && (
@@ -2529,6 +2555,176 @@ function NoteModal({ note, player, date, time, pract, onSave, onClose }) {
 }
 
 // ─── Stats Modal ──────────────────────────────────────────────────────────────
+// ─── Cryo Planning ───────────────────────────────────────────────────────────
+function CryoPlanning({ date, cryoSlots, players, loadAll }) {
+  const T = THEME;
+  const SLOT_H = 36;
+  const [assignModal, setAssignModal] = useState(null); // {colId, time}
+  const [editPlayer, setEditPlayer] = useState("");
+
+  // Générer les créneaux toutes les 20 minutes de 9h à 23h
+  const times = [];
+  for (let h = 9; h < 24; h++) {
+    times.push(`${String(h).padStart(2,"0")}:00`);
+    if (h < 23) { times.push(`${String(h).padStart(2,"0")}:20`); times.push(`${String(h).padStart(2,"0")}:40`); }
+    else { times.push("23:20"); times.push("23:40"); }
+  }
+
+  const now = new Date();
+  const todayS = now.toISOString().split("T")[0];
+  function isTimePast(time) {
+    if (date < todayS) return true;
+    if (date > todayS) return false;
+    const [h, m] = time.split(":").map(Number);
+    return h < now.getHours() || (h === now.getHours() && m <= now.getMinutes());
+  }
+
+  async function toggleSlot(colId, time) {
+    const key = `${colId}|${date}|${time}`;
+    const existing = cryoSlots[key];
+    if (existing !== undefined) {
+      await supabase.from("cryo_slots").delete().match({col_id:colId, date, time});
+    } else {
+      await supabase.from("cryo_slots").insert({col_id:colId, date, time, player:"", locked:false});
+    }
+    loadAll();
+  }
+
+  async function assignPlayer(colId, time, player) {
+    await supabase.from("cryo_slots").update({player}).match({col_id:colId, date, time});
+    loadAll();
+    setAssignModal(null);
+  }
+
+  async function unassignPlayer(colId, time) {
+    await supabase.from("cryo_slots").update({player:""}).match({col_id:colId, date, time});
+    loadAll();
+  }
+
+  const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+
+  return (
+    <div style={{padding:"0 0 60px"}}>
+      <div style={{padding:"12px 20px 8px", fontSize:14, fontWeight:700, color:CRYO_COLOR}}>
+        ❄️ Cryothérapie — {dateLabel}
+      </div>
+      <div style={{padding:"0 20px 12px", fontSize:12, color:T.textDim}}>
+        Cliquez sur un créneau pour l'ouvrir/fermer. Cliquez sur un créneau ouvert pour assigner un joueur.
+      </div>
+
+      {/* Grille */}
+      <div style={{display:"flex", overflowX:"auto", paddingBottom:8}}>
+        {/* Axe horaire */}
+        <div style={{width:56, flexShrink:0, display:"flex", flexDirection:"column"}}>
+          <div style={{height:44, borderBottom:`1px solid ${T.border}`}} />
+          {times.map(time => {
+            const past = isTimePast(time);
+            const isHour = time.endsWith(":00");
+            return (
+              <div key={time} style={{
+                height:SLOT_H, flexShrink:0,
+                display:"flex", alignItems:"center", justifyContent:"flex-end",
+                paddingRight:8,
+                background: past ? "#c8ccdc" : isHour ? T.surface2 : T.surface3,
+                borderBottom: isHour ? `2px solid ${past?"#adb2c8":T.border}` : `1px solid ${past?"#b8bdd0":T.border2}`,
+                borderRight: `1px solid ${T.border}`,
+              }}>
+                <span style={{fontSize:isHour?11:9, fontWeight:isHour?700:400, color:past?"#8890aa":isHour?T.textMid:T.textDim}}>
+                  {time}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Colonnes Cryo A et B */}
+        {CRYO_COLS.map((col, ci) => {
+          const colColor = ci === 0 ? CRYO_COLOR : "#26c6da";
+          return (
+            <div key={col.id} style={{flex:1, minWidth:120, display:"flex", flexDirection:"column", borderRight:`1px solid ${T.border}`}}>
+              {/* Header colonne */}
+              <div style={{
+                height:44, display:"flex", alignItems:"center", justifyContent:"center",
+                background: colColor+"22", borderBottom:`2px solid ${colColor}`,
+                fontWeight:800, fontSize:14, color:colColor,
+              }}>
+                ❄️ {col.label}
+              </div>
+              {times.map((time, ti) => {
+                const key = `${col.id}|${date}|${time}`;
+                const slot = cryoSlots[key];
+                const isOpen = slot !== undefined;
+                const hasPlayer = isOpen && slot.player;
+                const past = isTimePast(time);
+                const isHour = time.endsWith(":00");
+                const is20 = time.endsWith(":20");
+                const bg = past ? (isHour ? "#d0d4e4" : "#ccd0e0")
+                  : isOpen ? (hasPlayer ? colColor+"55" : colColor+"22")
+                  : (isHour ? T.surface : T.surface3+"88");
+
+                return (
+                  <div key={time} onClick={() => { if (past) return; if (!isOpen) toggleSlot(col.id, time); else if (!hasPlayer) { setAssignModal({colId:col.id, time}); setEditPlayer(""); } }}
+                    style={{
+                      height:SLOT_H, flexShrink:0,
+                      background: bg,
+                      borderBottom: isHour ? `2px solid ${past?"#b8bdd0":isOpen?colColor+"66":T.border}` : `1px solid ${past?"#b8bdd0":isOpen?colColor+"33":T.border2}`,
+                      borderLeft: isOpen ? `3px solid ${colColor}` : "3px solid transparent",
+                      cursor: past ? "default" : "pointer",
+                      display:"flex", alignItems:"center", justifyContent:"space-between",
+                      padding:"0 8px",
+                      transition:"background 0.15s",
+                    }}>
+                    {isOpen && !hasPlayer && !past && (
+                      <span style={{fontSize:11, color:colColor, fontWeight:700}}>+ Joueur</span>
+                    )}
+                    {isOpen && hasPlayer && (
+                      <>
+                        <span style={{fontSize:12, fontWeight:800, color:"#fff", background:colColor, borderRadius:6, padding:"2px 7px", maxWidth:"70%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                          {slot.player}
+                        </span>
+                        <button onClick={e=>{e.stopPropagation(); unassignPlayer(col.id, time);}} style={{
+                          background:"none", border:"none", cursor:"pointer", color:T.textDim, fontSize:14, padding:0,
+                        }}>✕</button>
+                      </>
+                    )}
+                    {!isOpen && !past && (
+                      <span style={{fontSize:10, color:T.textDim, margin:"0 auto"}}>·</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Modal assignation */}
+      {assignModal && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center"}}
+          onClick={()=>setAssignModal(null)}>
+          <div style={{background:T.surface,borderRadius:16,padding:24,minWidth:280,boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{fontWeight:800,fontSize:16,color:CRYO_COLOR,marginBottom:16}}>❄️ Assigner un joueur</div>
+            <div style={{fontSize:12,color:T.textDim,marginBottom:12}}>Créneau {assignModal.time}</div>
+            <select value={editPlayer} onChange={e=>setEditPlayer(e.target.value)}
+              style={{width:"100%",padding:"10px 12px",borderRadius:10,border:`1px solid ${T.border}`,fontSize:14,marginBottom:16,background:T.surface}}>
+              <option value="">-- Sélectionner --</option>
+              {players.map(p=><option key={p} value={p}>{p}</option>)}
+            </select>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setAssignModal(null)} style={{flex:1,padding:"10px",borderRadius:10,border:`1px solid ${T.border}`,background:T.surface2,cursor:"pointer",fontWeight:700}}>Annuler</button>
+              <button onClick={()=>{ if(editPlayer) assignPlayer(assignModal.colId, assignModal.time, editPlayer); }}
+                style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:CRYO_COLOR,color:"#fff",cursor:"pointer",fontWeight:700,opacity:editPlayer?1:0.5}}>
+                ✓ Confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatsModal({ onClose, bookings, practitioners, bookingHistory, strapSlots }) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo,   setDateTo]   = useState("");
