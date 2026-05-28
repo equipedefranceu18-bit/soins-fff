@@ -2071,18 +2071,13 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     const prevOpen = isSlotOpen(k.id, date, prevTime);
     const prevBooking = getBooking(k.id, date, prevTime);
     if (!prevOpen && !prevBooking) return null;
-    // Durée : open_slots en priorité absolue (source de vérité)
-    const prevOpenDur = open[slotKey(k.id, date, prevTime)];
-    if (prevOpenDur) {
-      return prevOpenDur === 60 ? prevTime : null;
-    }
-    // Pas de open_slots : créneau récurrent ou booking sans open_slot
-    // Pour les bookings staff, booking.duration fait foi
-    if (prevBooking && prevBooking.locked) {
+    // Si booking : sa durée fait foi absolue
+    if (prevBooking) {
       return (prevBooking.duration || 60) === 60 ? prevTime : null;
     }
-    // Créneau ouvert sans booking : récurrence
-    const dur = getSlotDuration(k.id, date, prevTime);
+    // Pas de booking : créneau ouvert — open_slots puis récurrence
+    const prevOpenDur = open[slotKey(k.id, date, prevTime)];
+    const dur = prevOpenDur || getSlotDuration(k.id, date, prevTime);
     return dur === 60 ? prevTime : null;
   }
 
