@@ -1743,6 +1743,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           cryoSlots={cryoSlots}
           players={PLAYERS}
           loadAll={loadAll}
+          bookings={bookings}
         />
       )}
 
@@ -2585,10 +2586,29 @@ function NoteModal({ note, player, date, time, pract, onSave, onClose }) {
 
 // ─── Stats Modal ──────────────────────────────────────────────────────────────
 // ─── Cryo Planning ───────────────────────────────────────────────────────────
-function CryoPlanning({ date, cryoSlots, players, loadAll }) {
+function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
   const SLOT_H = 36;
-  const [assignModal, setAssignModal] = useState(null); // {colId, time}
-  const [editPlayer, setEditPlayer] = useState("");
+  const [contextMenu, setContextMenu] = useState(null); // {colId, time, x, y}
+  const [conflict, setConflict] = useState(null);
+
+  function checkConflict(player, time) {
+    const slotMin = parseInt(time.split(":")[0])*60 + parseInt(time.split(":")[1]);
+    // Vérifier soins
+    for (const [k,v] of Object.entries(bookings||{})) {
+      const parts = k.split("|");
+      if (parts[1] !== date || v.cancelled || v.player !== player) continue;
+      const tMin = parseInt(parts[2].split(":")[0])*60 + parseInt(parts[2].split(":")[1]);
+      if (Math.abs(tMin - slotMin) < 20) return `${player} a un soin à ${parts[2]}`;
+    }
+    // Vérifier cryo
+    for (const [k,v] of Object.entries(cryoSlots||{})) {
+      const parts = k.split("|");
+      if (parts[1] !== date || !v.player || v.player !== player) continue;
+      const tMin = parseInt(parts[2].split(":")[0])*60 + parseInt(parts[2].split(":")[1]);
+      if (Math.abs(tMin - slotMin) < 20) return `${player} est déjà en cryo à ${parts[2]}`;
+    }
+    return null;
+  }
 
   // Générer les créneaux toutes les 20 minutes de 9h à 23h
   const times = [];
@@ -2621,9 +2641,17 @@ function CryoPlanning({ date, cryoSlots, players, loadAll }) {
   }
 
   async function assignPlayer(colId, time, player) {
-    await supabase.from("cryo_slots").update({player}).match({col_id:colId, date, time});
-    loadAll();
-    setAssignModal(null);
+    const msg = checkConflict(player, time);
+    if (msg) { setConflict(msg); return; }
+    const key = `${colId}|${date}|${time}`;
+    if (cryoSlots[key] !== undefined) {
+      await supabase.from("cryo_slots").update({player}).match({col_id:colId, date, time});
+    } else {
+      await supabase.from("cryo_slots").insert({col_id:colId, date, time, player, locked:false});
+    }
+    await loadAll();
+    setContextMenu(null);
+    setConflict(null);
   }
 
   async function unassignPlayer(colId, time) {
@@ -2694,7 +2722,7 @@ function CryoPlanning({ date, cryoSlots, players, loadAll }) {
                     : (ti % 2 === 0 ? T.surface : T.surface3+"88");
 
                 return (
-                  <div key={time} onClick={() => { if (past) return; if (!isOpen) toggleSlot(col.id, time); else if (!hasPlayer) { setAssignModal({colId:col.id, time}); setEditPlayer(""); } }}
+                  <div key={time} onClick={(e) => { if (past) return; if (!hasPlayer) { setContextMenu({colId:col.id, time, x:e.clientX, y:e.clientY}); setConflict(null); } }}
                     style={{
                       height:SLOT_H, flexShrink:0,
                       background: bg,
@@ -2729,25 +2757,34 @@ function CryoPlanning({ date, cryoSlots, players, loadAll }) {
         })}
       </div>
 
-      {/* Modal assignation */}
-      {assignModal && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center"}}
-          onClick={()=>setAssignModal(null)}>
-          <div style={{background:T.surface,borderRadius:16,padding:24,minWidth:280,boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}}
-            onClick={e=>e.stopPropagation()}>
-            <div style={{fontWeight:800,fontSize:16,color:CRYO_COLOR,marginBottom:16}}>❄️ Assigner un joueur</div>
-            <div style={{fontSize:12,color:T.textDim,marginBottom:12}}>Créneau {assignModal.time}</div>
-            <select value={editPlayer} onChange={e=>setEditPlayer(e.target.value)}
-              style={{width:"100%",padding:"10px 12px",borderRadius:10,border:`1px solid ${T.border}`,fontSize:14,marginBottom:16,background:T.surface}}>
-              <option value="">-- Sélectionner --</option>
-              {players.map(p=><option key={p} value={p}>{p}</option>)}
-            </select>
-            <div style={{display:"flex",gap:8}}>
-              <button onClick={()=>setAssignModal(null)} style={{flex:1,padding:"10px",borderRadius:10,border:`1px solid ${T.border}`,background:T.surface2,cursor:"pointer",fontWeight:700}}>Annuler</button>
-              <button onClick={()=>{ if(editPlayer) assignPlayer(assignModal.colId, assignModal.time, editPlayer); }}
-                style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:CRYO_COLOR,color:"#fff",cursor:"pointer",fontWeight:700,opacity:editPlayer?1:0.5}}>
-                ✓ Confirmer
-              </button>
+      {/* Menu contextuel assignation cryo */}
+      {contextMenu && (
+        <div style={{position:"fixed",inset:0,zIndex:100}} onClick={()=>{setContextMenu(null);setConflict(null);}}>
+          <div style={{
+            position:"fixed",
+            left: Math.min(contextMenu.x+4, window.innerWidth-220),
+            top: Math.min(contextMenu.y+4, window.innerHeight-360),
+            width:200, background:"#fff", borderRadius:12,
+            boxShadow:"0 8px 32px rgba(0,35,149,0.2)", border:`1px solid ${T.border}`,
+            zIndex:101, overflow:"hidden",
+          }} onClick={e=>e.stopPropagation()}>
+            <div style={{padding:"8px 12px",fontSize:11,fontWeight:700,color:CRYO_COLOR,background:CRYO_COLOR+"18",borderBottom:`1px solid ${T.border}`}}>
+              ❄️ Cryo · {contextMenu.time}
+            </div>
+            {conflict && (
+              <div style={{padding:"8px 12px",fontSize:11,color:"#c0392b",background:"#fff5f5",borderBottom:`1px solid #f5c6cb`}}>
+                ⚠️ {conflict}
+              </div>
+            )}
+            <div style={{maxHeight:260,overflowY:"auto"}}>
+              {players.map(p => (
+                <div key={p} onClick={()=>assignPlayer(contextMenu.colId, contextMenu.time, p)}
+                  style={{padding:"8px 12px",fontSize:13,fontWeight:600,cursor:"pointer",color:T.text,borderBottom:`1px solid ${T.border2}`,background:"#fff"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=T.surface2}
+                  onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                  {p}
+                </div>
+              ))}
             </div>
           </div>
         </div>
