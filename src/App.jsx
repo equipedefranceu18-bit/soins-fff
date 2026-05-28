@@ -2071,19 +2071,19 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     const prevOpen = isSlotOpen(k.id, date, prevTime);
     const prevBooking = getBooking(k.id, date, prevTime);
     if (!prevOpen && !prevBooking) return null;
-    // Durée : lire d'abord staffDefaultDuration via open_slots (durée réelle stockée)
-    // Si booking existe, sa durée fait foi
+    // Durée : open_slots en priorité absolue (source de vérité)
     const prevOpenDur = open[slotKey(k.id, date, prevTime)];
-    if (prevBooking) {
-      // Durée de la réservation : si open_slots a été mis à jour avec dur=30, utiliser ça
-      const dur = prevOpenDur || prevBooking.duration || 60;
-      if (dur === 60) return prevTime;
-      return null;
+    if (prevOpenDur) {
+      return prevOpenDur === 60 ? prevTime : null;
     }
-    // Pas de booking : créneau ouvert sans joueur
-    const dur = prevOpenDur || getSlotDuration(k.id, date, prevTime);
-    if (dur === 60) return prevTime;
-    return null;
+    // Pas de open_slots : créneau récurrent ou booking sans open_slot
+    // Pour les bookings staff, booking.duration fait foi
+    if (prevBooking && prevBooking.locked) {
+      return (prevBooking.duration || 60) === 60 ? prevTime : null;
+    }
+    // Créneau ouvert sans booking : récurrence
+    const dur = getSlotDuration(k.id, date, prevTime);
+    return dur === 60 ? prevTime : null;
   }
 
   // La grille staff : axe temps fixe H30, mais chaque colonne kiné
