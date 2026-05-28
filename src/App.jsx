@@ -2645,15 +2645,13 @@ function CryoPlanning({ date, cryoSlots, players, loadAll }) {
           {times.map((time, ti) => {
             const past = isTimePast(time);
             const isHour = time.endsWith(":00");
-            const hourGroup = Math.floor(ti / 3);
-            const axAlt = hourGroup % 2 === 0 ? T.surface2 : T.surface3;
             return (
               <div key={time} style={{
                 height:SLOT_H, flexShrink:0,
                 display:"flex", alignItems:"center", justifyContent:"flex-end",
                 paddingRight:8,
-                background: past ? "#c8ccdc" : axAlt,
-                borderBottom: isHour ? `2px solid ${past?"#adb2c8":T.border}` : `1px solid ${past?"#b8bdd0":T.border2}`,
+                background: past ? "#c8ccdc" : (ti % 2 === 0 ? T.surface2 : T.surface3),
+                borderBottom: `1px solid ${past?"#b8bdd0":T.border2}`,
                 borderRight: `1px solid ${T.border}`,
               }}>
                 <span style={{fontSize:isHour?11:9, fontWeight:isHour?700:400, color:past?"#8890aa":isHour?T.textMid:T.textDim}}>
@@ -2684,14 +2682,11 @@ function CryoPlanning({ date, cryoSlots, players, loadAll }) {
                 const hasPlayer = isOpen && slot.player;
                 const past = isTimePast(time);
                 const isHour = time.endsWith(":00");
-                const hourGroup = Math.floor(ti / 3);
-                const altBg = hourGroup % 2 === 0 ? T.surface : T.surface2;
-                const altBgSub = hourGroup % 2 === 0 ? T.surface2 : T.surface3;
                 const bg = past
-                  ? (isHour ? "#d0d4e4" : "#ccd0e0")
+                  ? "#d0d4e4"
                   : isOpen
                     ? (hasPlayer ? colColor+"55" : colColor+"22")
-                    : (isHour ? altBg : altBgSub);
+                    : (ti % 2 === 0 ? T.surface : T.surface3+"88");
 
                 return (
                   <div key={time} onClick={() => { if (past) return; if (!isOpen) toggleSlot(col.id, time); else if (!hasPlayer) { setAssignModal({colId:col.id, time}); setEditPlayer(""); } }}
