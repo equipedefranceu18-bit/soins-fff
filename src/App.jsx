@@ -1782,11 +1782,14 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
                   <span style={{color: kines4.find(k=>k.id===contextMenu.practId)?.color}}>
                     {kines4.find(k=>k.id===contextMenu.practId)?.name}
                   </span> · {contextMenu.time}
+                  <span style={{marginLeft:8, color: contextMenu.duration===30 ? T.red : T.navy, fontWeight:800}}>
+                    {contextMenu.duration===30 ? "30'" : "1h"}
+                  </span>
                 </div>
                 <div style={{maxHeight:260, overflowY:"auto"}}>
                   {PLAYERS.map(p => (
                     <div key={p} onClick={()=>{
-                      staffBookSlot(contextMenu.practId, contextMenu.date, contextMenu.time, p, staffDefaultDuration);
+                      staffBookSlot(contextMenu.practId, contextMenu.date, contextMenu.time, p, contextMenu.duration || staffDefaultDuration);
                       setContextMenu(null); setStaffTarget(null);
                     }} style={{
                       padding:"8px 12px", fontSize:13, fontWeight:600, cursor:"pointer",
@@ -1827,7 +1830,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
               }
               if (dvSubMode === "addPlayer") {
                 setStaffTarget({ practId, date, time });
-                if (e) setContextMenu({ x: e.clientX, y: e.clientY, practId, date, time });
+                if (e) setContextMenu({ x: e.clientX, y: e.clientY, practId, date, time, duration: duration || staffDefaultDuration });
               } else if (dvSubMode === "recurring") {
                 toggleRecurring(practId, date, time, staffDefaultDuration);
               } else if (dvSubMode === "split") {
@@ -2045,9 +2048,9 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     if (isPastDay) return;
     const { slotOpen, booking } = getSlotStatus(kines.find(k=>k.id===practId), time);
     if (booking) {
-      onCellClick(practId, date, time, null, e);
+      onCellClick(practId, date, time, defaultDuration, e);
     } else if (slotOpen) {
-      onCellClick(practId, date, time, null, e);
+      onCellClick(practId, date, time, defaultDuration, e);
     } else {
       openWithDuration(defaultDuration, practId, time, e);
     }
