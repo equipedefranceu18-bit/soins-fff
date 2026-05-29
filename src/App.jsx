@@ -2696,14 +2696,18 @@ function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
 
   function checkConflict(player, time) {
     const slotMin = parseInt(time.split(":")[0])*60 + parseInt(time.split(":")[1]);
-    // Vérifier soins du même jour
+    // Vérifier soins du même jour : bloquer si le créneau cryo est dans la plage du soin
     for (const [k,v] of Object.entries(bookings||{})) {
       const parts = k.split("|");
       if (parts[1] !== date || v.cancelled || v.player !== player) continue;
       const tMin = parseInt(parts[2].split(":")[0])*60 + parseInt(parts[2].split(":")[1]);
-      if (Math.abs(tMin - slotMin) < 20) return `${player} a un soin à ${parts[2]}`;
+      const dur = v.duration || 60;
+      // Le créneau cryo (20') chevauche-t-il le soin ?
+      if (slotMin < tMin + dur && slotMin + 20 > tMin) {
+        return `${player} a un soin de ${dur}'  à ${parts[2]}`;
+      }
     }
-    // Bloquer si le joueur a déjà UN créneau cryo ce jour-là (quel que soit l'heure)
+    // Bloquer si le joueur a déjà UN créneau cryo ce jour-là
     for (const [k,v] of Object.entries(cryoSlots||{})) {
       const parts = k.split("|");
       if (parts[1] !== date || !v.player || v.player !== player) continue;
