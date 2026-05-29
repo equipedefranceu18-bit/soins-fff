@@ -615,7 +615,7 @@ export default function App() {
           getSlotDuration={getSlotDuration}
           bookings={bookings}
           bookingHistory={bookingHistory}
-          strapSlots={strapSlots} toggleStrap={toggleStrap}
+          strapSlots={strapSlots} toggleStrap={toggleStrap} bookStrap={bookStrap}
           cryoSlots={cryoSlots} setCryoSlots={setCryoSlots} loadAll={loadAll}
           scheduleBlocks={scheduleBlocks} addScheduleBlock={addScheduleBlock} deleteScheduleBlock={deleteScheduleBlock}
           PLAYERS={PLAYERS} setView={setView}
@@ -1561,7 +1561,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
   unbook, staffBookSlot, addNote, moveBooking, changeDuration, staffTarget, setStaffTarget,
   staffPlayerName, setStaffPlayerName,
   getSlotsForContext, isSplit, toggleSplit, BASE_SLOTS, isHalfSlot,
-  getPastBookings, getSlotDuration, bookings, bookingHistory, strapSlots, toggleStrap, cryoSlots, setCryoSlots,
+  getPastBookings, getSlotDuration, bookings, bookingHistory, strapSlots, toggleStrap, bookStrap, cryoSlots, setCryoSlots,
   scheduleBlocks, addScheduleBlock, deleteScheduleBlock, PLAYERS, setView }) {
 
   const [dvSubMode, setDvSubMode] = useState("addPlayer");
