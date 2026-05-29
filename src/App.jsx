@@ -2802,6 +2802,19 @@ function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
     await loadAll();
   }
 
+  // Compteur cryo par joueur depuis le 28/05
+  const cryoPlayerCount = useMemo(() => {
+    const counts = {};
+    const START = "2026-05-28";
+    Object.entries(cryoSlots||{}).forEach(([k, v]) => {
+      if (!v.player) return;
+      const parts = k.split("|");
+      if (parts[1] < START) return;
+      counts[v.player] = (counts[v.player] || 0) + 1;
+    });
+    return counts;
+  }, [cryoSlots]);
+
   const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
 
   return (
@@ -2883,6 +2896,11 @@ function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
                       <>
                         <span style={{fontSize:12, fontWeight:800, color:"#fff", background:colColor, borderRadius:6, padding:"2px 7px", maxWidth:"70%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
                           {slot.player}
+                          {cryoPlayerCount[slot.player] > 0 && (
+                            <span style={{fontSize:9, marginLeft:4, opacity:0.85}}>
+                              ❄{cryoPlayerCount[slot.player]}
+                            </span>
+                          )}
                         </span>
                         <button onClick={e=>{e.stopPropagation(); unassignPlayer(col.id, time);}} style={{
                           background:"none", border:"none", cursor:"pointer", color:T.textDim, fontSize:14, padding:0,
