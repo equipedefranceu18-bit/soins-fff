@@ -1846,6 +1846,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             strapSlots={strapSlots}
             toggleStrap={toggleStrap}
             scheduleBlocks={scheduleBlocks}
+            bookingHistory={bookingHistory}
             onCellClick={(practId, date, time, duration, e) => {
               if (dvSubMode === "straps") {
                 const p = practitioners.find(x => x.id === practId);
