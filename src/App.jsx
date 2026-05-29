@@ -606,7 +606,7 @@ export default function App() {
           staffPract={staffPract} setStaffPract={setStaffPract}
           getBooking={getBooking} isSlotOpen={isSlotOpen} isRecurring={isRecurring}
           toggleOpen={toggleOpen} toggleRecurring={toggleRecurring}
-          unbook={unbook} staffBookSlot={staffBookSlot} addNote={addNote} moveBooking={moveBooking}
+          unbook={unbook} staffBookSlot={staffBookSlot} addNote={addNote} moveBooking={moveBooking} changeDuration={changeDuration}
           staffTarget={staffTarget} setStaffTarget={setStaffTarget}
           staffPlayerName={staffPlayerName} setStaffPlayerName={setStaffPlayerName}
           getSlotsForContext={getSlotsForContext} isSplit={isSplit} toggleSplit={toggleSplit}
@@ -1558,7 +1558,7 @@ function StaffAuth({ staffPwd, setStaffPwd, onAuth, setView }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staffPract, setStaffPract,
   getBooking, isSlotOpen, isRecurring, toggleOpen, toggleRecurring,
-  unbook, staffBookSlot, addNote, moveBooking, staffTarget, setStaffTarget,
+  unbook, staffBookSlot, addNote, moveBooking, changeDuration, staffTarget, setStaffTarget,
   staffPlayerName, setStaffPlayerName,
   getSlotsForContext, isSplit, toggleSplit, BASE_SLOTS, isHalfSlot,
   getPastBookings, getSlotDuration, bookings, bookingHistory, strapSlots, toggleStrap, cryoSlots, setCryoSlots,
