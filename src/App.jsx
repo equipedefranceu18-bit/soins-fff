@@ -168,7 +168,7 @@ export default function App() {
       });
       const sb = await supabase.from("schedule_blocks").select("*");
       const cryo = await supabase.from("cryo_slots").select("*");
-      const cym={}; (cryo.data||[]).forEach(x=>{ cym[`${x.col_id}|${x.date}|${x.time}`]={player:x.player||"",locked:x.locked||false}; });
+      const cym={}; (cryo.data||[]).forEach(x=>{ cym[`${x.col_id}|${x.date}|${x.time}`]={player:x.player||"",locked:x.locked||false,t_cut_in:x.t_cut_in??null,t_cut_out:x.t_cut_out??null,t_in:x.t_in??null,t_out:x.t_out??null,duration_cryo:x.duration_cryo??null,duration_return:x.duration_return??null}; });
       setOpen(om); setClosed(cm); setRecurring(rm); setSplitSlots(sm); setBookings(bm); setStrapSlots(stm); setBookingHistory(allHistory);
       setCryoSlots(cym);
       setScheduleBlocks(sb.data||[]);
@@ -2785,6 +2785,13 @@ function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
   const SLOT_H = 36;
   const [contextMenu, setContextMenu] = useState(null); // {colId, time, x, y}
   const [conflict, setConflict] = useState(null);
+  const [cryoDataModal, setCryoDataModal] = useState(null); // {colId, time, colColor, slot}
+
+  async function saveCryoData(colId, time, fields) {
+    await supabase.from("cryo_slots").update(fields).match({col_id:colId, date, time});
+    await loadAll();
+    setCryoDataModal(null);
+  }
 
   function checkConflict(player, time) {
     const slotMin = parseInt(time.split(":")[0])*60 + parseInt(time.split(":")[1]);
@@ -2933,13 +2940,13 @@ function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
                     : (ti % 2 === 0 ? T.surface : T.surface3+"88");
 
                 return (
-                  <div key={time} onClick={(e) => { if (past && hasPlayer) return; if (past && !hasPlayer) { setContextMenu({colId:col.id, time, x:e.clientX, y:e.clientY}); setConflict(null); return; } if (!hasPlayer) { setContextMenu({colId:col.id, time, x:e.clientX, y:e.clientY}); setConflict(null); } }}
+                  <div key={time} onClick={(e) => { if (hasPlayer) { setCryoDataModal({colId:col.id, time, colColor, slot}); return; } if (past && !hasPlayer) { setContextMenu({colId:col.id, time, x:e.clientX, y:e.clientY}); setConflict(null); return; } if (!hasPlayer) { setContextMenu({colId:col.id, time, x:e.clientX, y:e.clientY}); setConflict(null); } }}
                     style={{
                       height:SLOT_H, flexShrink:0,
                       background: bg,
                       borderBottom: isHour ? `2px solid ${past?"#b8bdd0":isOpen?colColor+"66":T.border}` : `1px solid ${past?"#b8bdd0":isOpen?colColor+"33":T.border2}`,
                       borderLeft: isOpen ? `3px solid ${colColor}` : "3px solid transparent",
-                      cursor: (past && hasPlayer) ? "default" : "pointer",
+                      cursor: "pointer",
                       display:"flex", alignItems:"center", justifyContent:"space-between",
                       padding:"0 8px",
                       transition:"background 0.15s",
@@ -2949,7 +2956,7 @@ function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
                     )}
                     {isOpen && hasPlayer && (
                       <>
-                        <span style={{fontSize:12, fontWeight:800, color:"#fff", background:colColor, borderRadius:6, padding:"2px 7px", maxWidth:"70%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                        <span style={{fontSize:12, fontWeight:800, color:"#fff", background:colColor, borderRadius:6, padding:"2px 7px", maxWidth:"60%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
                           {slot.player}
                           {cryoPlayerCount[slot.player] > 0 && (
                             <span style={{fontSize:9, marginLeft:4, opacity:0.85}}>
@@ -2957,9 +2964,14 @@ function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
                             </span>
                           )}
                         </span>
-                        <button onClick={e=>{e.stopPropagation(); unassignPlayer(col.id, time);}} style={{
-                          background:"none", border:"none", cursor:"pointer", color:T.textDim, fontSize:14, padding:0,
-                        }}>✕</button>
+                        <span style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+                          {(slot.t_cut_in!=null||slot.t_in!=null||slot.duration_cryo!=null) && (
+                            <span style={{fontSize:9,color:colColor,fontWeight:700,background:colColor+"22",borderRadius:4,padding:"1px 4px"}}>📋</span>
+                          )}
+                          <button onClick={e=>{e.stopPropagation(); unassignPlayer(col.id, time);}} style={{
+                            background:"none", border:"none", cursor:"pointer", color:T.textDim, fontSize:14, padding:0,
+                          }}>✕</button>
+                        </span>
                       </>
                     )}
                     {!isOpen && !past && (
@@ -3005,6 +3017,101 @@ function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
           </div>
         </div>
       )}
+
+      {/* Modal données cryo */}
+      {cryoDataModal && (
+        <CryoDataModal
+          slot={cryoDataModal.slot}
+          colColor={cryoDataModal.colColor}
+          time={cryoDataModal.time}
+          date={date}
+          onSave={(fields) => saveCryoData(cryoDataModal.colId, cryoDataModal.time, fields)}
+          onClose={() => setCryoDataModal(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+
+function CryoDataModal({ slot, colColor, time, date, onSave, onClose }) {
+  const [form, setForm] = useState({
+    t_cut_in:       slot.t_cut_in       ?? "",
+    t_cut_out:      slot.t_cut_out      ?? "",
+    t_in:           slot.t_in           ?? "",
+    t_out:          slot.t_out          ?? "",
+    duration_cryo:  slot.duration_cryo  ?? "",
+    duration_return: slot.duration_return ?? "",
+  });
+
+  const fields = [
+    { key:"t_cut_in",       label:"T° cutanée entrée",  unit:"°C", step:"0.1" },
+    { key:"t_cut_out",      label:"T° cutanée sortie",  unit:"°C", step:"0.1" },
+    { key:"t_in",           label:"T° entrée",          unit:"°C", step:"0.1" },
+    { key:"t_out",          label:"T° sortie",          unit:"°C", step:"0.1" },
+    { key:"duration_cryo",  label:"Durée cryo",         unit:"min", step:"1" },
+    { key:"duration_return",label:"Durée retour T°",    unit:"min", step:"1" },
+  ];
+
+  function handleSave() {
+    const toSave = {};
+    fields.forEach(f => {
+      const v = form[f.key];
+      toSave[f.key] = v === "" ? null : parseFloat(v);
+    });
+    onSave(toSave);
+  }
+
+  const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"});
+
+  return (
+    <div style={css.modalOverlay} onClick={onClose}>
+      <div style={{...css.modalCard, maxWidth:360}} onClick={e=>e.stopPropagation()}>
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+          <div style={{width:36,height:36,borderRadius:10,background:colColor+"33",border:`2px solid ${colColor}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>❄️</div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:800,fontSize:15,color:colColor}}>{slot.player}</div>
+            <div style={{fontSize:12,color:T.textDim}}>{dateLabel} · {time}</div>
+          </div>
+          <button style={{...css.backBtn,background:T.surface2,color:T.textDim,border:`1px solid ${T.border}`,padding:"4px 10px",fontSize:16}} onClick={onClose}>✕</button>
+        </div>
+
+        {/* Fields */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+          {fields.map(f => (
+            <div key={f.key}>
+              <div style={{fontSize:11,fontWeight:700,color:T.textDim,marginBottom:4,textTransform:"uppercase",letterSpacing:0.8}}>{f.label}</div>
+              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                <input
+                  type="number"
+                  step={f.step}
+                  value={form[f.key]}
+                  onChange={e => setForm(v => ({...v, [f.key]: e.target.value}))}
+                  placeholder="—"
+                  style={{
+                    flex:1, background:T.surface2, border:`1px solid ${T.border}`,
+                    borderRadius:8, padding:"8px 10px", color:T.text, fontSize:14,
+                    width:"100%", boxSizing:"border-box",
+                    outline:"none",
+                  }}
+                />
+                <span style={{fontSize:11,color:T.textDim,flexShrink:0}}>{f.unit}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Actions */}
+        <div style={{display:"flex",gap:8}}>
+          <button style={{...css.btn,...css.btnConfirm,flex:1,fontSize:14,padding:"10px"}} onClick={handleSave}>
+            💾 Enregistrer
+          </button>
+          <button style={{...css.btn,background:T.surface2,color:T.textDim,border:`1px solid ${T.border}`,fontSize:14,padding:"10px 16px"}} onClick={onClose}>
+            Annuler
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
