@@ -452,7 +452,12 @@ export default function App() {
   async function unbook(practId, date, time) {
     const date_ = slotKey(practId, date, time).split("|")[1];
     if (isPast(date_)) return;
+    // Supprimer booking + open_slot pour que le créneau disparaisse complètement
     await supabase.from("bookings").delete().match({pract_id:practId, date, time});
+    await supabase.from("open_slots").delete().match({pract_id:practId, date, time});
+    // Fermer aussi le :30 si c'était un slot 1h
+    const halfTime = `${time.split(":")[0]}:${time.endsWith(":00") ? "30" : "15"}`;
+    await supabase.from("open_slots").delete().match({pract_id:practId, date, time:halfTime});
     await loadAll();
   }
 
@@ -2214,7 +2219,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           opacity: slotPast ? 0.6 : 1,
           overflow:"hidden",
         }}
-          onClick={() => !isPastDay && subMode === "straps" && !isBooked && onCellClick(k.id, date, time)}>
+          onClick={(e) => { if (!isPastDay && !isBooked) onCellClick(k.id, date, time, null, e); }}>
           {isBooked ? (
             <div style={{width:"100%", padding:"0 4px", overflow:"hidden"}}>
               <div style={{display:"flex", alignItems:"center", gap:2}}>
@@ -2231,9 +2236,15 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
               <div style={{fontSize:7, color:STRAP_COLOR, fontWeight:600}}>15'</div>
             </div>
           ) : (
-            <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:1}}>
-              <span style={{fontSize:11}}>🩹</span>
-              <span style={{fontSize:7, fontWeight:800, color:STRAP_COLOR}}>15'</span>
+            <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"0 4px"}}>
+              <div style={{display:"flex", alignItems:"center", gap:2}}>
+                <span style={{fontSize:10}}>🩹</span>
+                <span style={{fontSize:7, fontWeight:800, color:STRAP_COLOR}}>15'</span>
+              </div>
+              {!isPastDay && (
+                <button style={{...css.deleteBtn, fontSize:9, padding:"1px 3px"}}
+                  onClick={e=>{e.stopPropagation(); toggleStrap(k.id,date,time);}}>✕</button>
+              )}
             </div>
           )}
         </div>
