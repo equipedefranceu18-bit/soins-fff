@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://khueuwkglmtvoqctyaor.supabase.co";
@@ -2064,7 +2064,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     return h < now.getHours() || (h === now.getHours() && m <= now.getMinutes());
   }
   // Compteur de soins par joueur depuis le 28/05
-  const soinCount = React.useMemo(() => {
+  const soinCount = useMemo(() => {
     const counts = {};
     const START = "2026-05-28";
     (bookingHistory||[]).forEach(b => {
