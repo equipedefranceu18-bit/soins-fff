@@ -15,14 +15,7 @@ const PRACTITIONERS = [
 ];
 
 const PLAYERS = [
-  // Gardiens
-  "Mike","Robin","Brice",
-  // Défenseurs
-  "Lucas D.","Malo","Lucas H.","Théo","Ibrahima","Jules","Maxence","William","Dayot",
-  // Milieux
-  "N'Golo","Manu","Adrien","Aurélien","Warren",
-  // Attaquants
-  "Maghnes","Bradley","Rayan","Ousmane","Désiré","Jean-Philippe","Kylian","Michael","Marcus",
+  "Adrien", "Aurélien", "Bradley", "Brice", "Dayot", "Désiré", "Ibrahima", "Jean-Philippe", "Jules", "Kylian", "Lucas D.", "Lucas H.", "Maghnes", "Malo", "Manu", "Marcus", "Maxence", "Michael", "Mike", "N'Golo", "Ousmane", "Rayan", "Robin", "Théo", "Warren", "William",
 ];
 
 const STAFF_PASSWORD = "staff2024";
@@ -1789,7 +1782,11 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
                 <div style={{maxHeight:260, overflowY:"auto"}}>
                   {PLAYERS.map(p => (
                     <div key={p} onClick={()=>{
-                      staffBookSlot(contextMenu.practId, contextMenu.date, contextMenu.time, p, contextMenu.duration || staffDefaultDuration);
+                      if (contextMenu.mode === "strap") {
+                        bookStrap(contextMenu.practId, contextMenu.date, contextMenu.time, p);
+                      } else {
+                        staffBookSlot(contextMenu.practId, contextMenu.date, contextMenu.time, p, contextMenu.duration || staffDefaultDuration);
+                      }
                       setContextMenu(null); setStaffTarget(null);
                     }} style={{
                       padding:"8px 12px", fontSize:13, fontWeight:600, cursor:"pointer",
@@ -1820,7 +1817,22 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             onCellClick={(practId, date, time, duration, e) => {
               if (dvSubMode === "straps") {
                 const p = practitioners.find(x => x.id === practId);
-                if (p && p.role === "kiné") toggleStrap(practId, date, time);
+                if (p && p.role === "kiné") {
+                  const sk = `${STRAP_ID}_${practId}|${date}|${time}`;
+                  const strapData = strapSlots[sk];
+                  if (strapData && strapData.player) {
+                    // Déjà réservé : désassigner
+                    toggleStrap(practId, date, time);
+                  } else if (strapData) {
+                    // Ouvert sans joueur : ouvrir menu contextuel
+                    if (e) setContextMenu({ x: e.clientX, y: e.clientY, practId, date, time, duration: 30, mode: "strap" });
+                  } else {
+                    // Pas encore ouvert : ouvrir le strap ET ouvrir menu contextuel
+                    toggleStrap(practId, date, time).then(() => {
+                      if (e) setContextMenu({ x: e.clientX, y: e.clientY, practId, date, time, duration: 30, mode: "strap" });
+                    });
+                  }
+                }
                 return;
               }
               const booking = getBooking(practId, date, time);
@@ -2008,7 +2020,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   getSlotsForContext, isSplit, onCellClick, unbook, toggleOpen, getSlotDuration, strapSlots, toggleStrap, scheduleBlocks, onDurationChange }) {
 
   const isPastDay = isPast(date);
-  const H30 = 28, HEADER = 48;
+  const H30 = 14, HEADER = 48; // 14px par 15 minutes
 
   // Vrai si ce créneau est dans le passé (jour passé OU aujourd'hui mais heure dépassée)
   function isSlotPast(time) {
@@ -2027,10 +2039,11 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   const allTimes = [];
   for (let h = 9; h <= 23; h++) {
     allTimes.push(`${String(h).padStart(2,"0")}:00`);
-    if (h < 23) allTimes.push(`${String(h).padStart(2,"0")}:30`);
+    allTimes.push(`${String(h).padStart(2,"0")}:15`);
+    allTimes.push(`${String(h).padStart(2,"0")}:30`);
+    if (h < 23) allTimes.push(`${String(h).padStart(2,"0")}:45`);
   }
-  // Ajouter 23:30 si besoin
-  allTimes.push("23:30");
+  allTimes.push("23:45");
 
   // Filtrer pour n'afficher que les créneaux où au moins un kiné a quelque chose
   // OU afficher tous si aucun créneau ouvert (grille vide)
@@ -2070,18 +2083,20 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   function getCoveringSlot(k, time) {
     const idx = displayTimes.indexOf(time);
     if (idx <= 0) return null;
-    const prevTime = displayTimes[idx - 1];
-    const prevOpen = isSlotOpen(k.id, date, prevTime);
-    const prevBooking = getBooking(k.id, date, prevTime);
-    if (!prevOpen && !prevBooking) return null;
-    // Si booking : sa durée fait foi absolue
-    if (prevBooking) {
-      return (prevBooking.duration || 60) === 60 ? prevTime : null;
+    // Chercher en arrière sur max 3 intervalles (pour les slots 1h = 4x15')
+    for (let back = 1; back <= 3; back++) {
+      if (idx - back < 0) break;
+      const prevTime = displayTimes[idx - back];
+      const prevOpen = isSlotOpen(k.id, date, prevTime);
+      const prevBooking = getBooking(k.id, date, prevTime);
+      if (!prevOpen && !prevBooking) break; // trou = pas de covering
+      const prevOpenDur = open[slotKey(k.id, date, prevTime)];
+      const dur = prevBooking ? (prevBooking.duration || 60) : (prevOpenDur || getSlotDuration(k.id, date, prevTime));
+      const slotsNeeded = dur === 60 ? 4 : 2; // 1h=4x15', 30'=2x15'
+      if (back < slotsNeeded) return prevTime; // ce slot est couvert
+      break;
     }
-    // Pas de booking : créneau ouvert — open_slots puis récurrence
-    const prevOpenDur = open[slotKey(k.id, date, prevTime)];
-    const dur = prevOpenDur || getSlotDuration(k.id, date, prevTime);
-    return dur === 60 ? prevTime : null;
+    return null;
   }
 
   // La grille staff : axe temps fixe H30, mais chaque colonne kiné
@@ -2331,7 +2346,11 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
               display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 8px",
             }}>
               <div style={{textAlign:"right"}}>
-                <div style={{fontSize: time.endsWith(":00") ? 11 : 9, fontWeight: time.endsWith(":00") ? 700 : 400, color: axisPast ? "#8890aa" : (time.endsWith(":00") ? T.textMid : T.textDim)}}>{time}</div>
+                <div style={{
+                  fontSize: time.endsWith(":00") ? 11 : 8,
+                  fontWeight: time.endsWith(":00") ? 700 : 400,
+                  color: axisPast ? "#8890aa" : (time.endsWith(":00") ? T.textMid : T.textDim),
+                }}>{time.endsWith(":00") || time.endsWith(":30") ? time : time.slice(3)}</div>
               </div>
             </div>
             );
