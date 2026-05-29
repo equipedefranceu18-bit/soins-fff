@@ -2090,7 +2090,8 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     return counts;
   }, [cryoSlots]);
 
-  const [durationPicker, setDurationPicker] = useState(null); // {practId, time}
+  const [durationPicker, setDurationPicker] = useState(null);
+  const [selectedCell, setSelectedCell] = useState(null); // `${k.id}|${time}` // {practId, time}
   const [defaultDuration, _setDefaultDuration] = useState(60); // 30 ou 60
   const setDefaultDuration = (d) => { _setDefaultDuration(d); onDurationChange && onDurationChange(d); };
 
@@ -2343,19 +2344,19 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       indicator = (
         <div style={{width:"100%", overflow:"hidden", padding:"0 4px"}}>
           <div style={{display:"flex", alignItems:"center", gap:2}}>
-            <span style={{fontSize:10, fontWeight:800, color:k.color, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1,
-              textShadow:"0 0 0 transparent", filter:"brightness(0.6)"}}>
+            <span style={{fontSize:12, fontWeight:800, color:k.color, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1,
+              filter:"brightness(0.6)"}}>
               {booking.player}
-              {soinCount[booking.player] && (
-                <span style={{fontSize:7, fontWeight:700, opacity:0.8, marginLeft:2,
-                  background:k.color+"22", borderRadius:4, padding:"0 3px", whiteSpace:"nowrap"}}>
-                  {soinCount[booking.player].h60 > 0 && `${soinCount[booking.player].h60}×1h`}
-                  {soinCount[booking.player].h60 > 0 && soinCount[booking.player].h30 > 0 && " "}
-                  {soinCount[booking.player].h30 > 0 && `${soinCount[booking.player].h30}×30'`}
-                  {cryoCount[booking.player] > 0 && ` ❄${cryoCount[booking.player]}`}
-                </span>
-              )}
             </span>
+            {selectedCell === `${k.id}|${time}` && soinCount[booking.player] && (
+              <span style={{fontSize:7, fontWeight:700, color:k.color, opacity:0.9,
+                background:k.color+"18", borderRadius:4, padding:"1px 4px", whiteSpace:"nowrap", flexShrink:0}}>
+                {soinCount[booking.player].h60 > 0 && `${soinCount[booking.player].h60}×1h`}
+                {soinCount[booking.player].h60 > 0 && soinCount[booking.player].h30 > 0 && " "}
+                {soinCount[booking.player].h30 > 0 && `${soinCount[booking.player].h30}×30'`}
+                {cryoCount[booking.player] > 0 && ` ❄${cryoCount[booking.player]}`}
+              </span>
+            )}
             {booking.locked && <span style={{fontSize:8, opacity:0.7, flexShrink:0}}>🔒</span>}
             {!isPastDay && <button style={css.deleteBtn} onClick={e=>{e.stopPropagation();unbook(k.id,date,time);}}>✕</button>}
           </div>
@@ -2391,7 +2392,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         display:"flex", alignItems:"center", justifyContent:"center",
         cursor: isPastDay ? "default" : "pointer",
       }}
-        onClick={(e) => !isPastDay && handleCellClick(k.id, time, e)}
+        onClick={(e) => { if (!isPastDay) { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); } }}
         title={booking ? `${booking.player}` : slotOpen ? `Ouvert ${getSlotDuration(k.id,date,time)===60?"1h":"30'"}` : "Fermé — cliquer pour ouvrir"}>
         {indicator}
 
