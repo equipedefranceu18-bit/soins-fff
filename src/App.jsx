@@ -2066,14 +2066,28 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   }
   // Compteur de soins par joueur depuis le 28/05
   const soinCount = useMemo(() => {
-    const counts = {};
+    const counts = {}; // { player: { h30: n, h60: n, cryo: n } }
     const START = "2026-05-28";
     (bookingHistory||[]).forEach(b => {
       if (b.cancelled || !b.player || b.date < START) return;
-      counts[b.player] = (counts[b.player] || 0) + 1;
+      if (!counts[b.player]) counts[b.player] = { h30: 0, h60: 0 };
+      if ((b.duration||60) === 30) counts[b.player].h30++;
+      else counts[b.player].h60++;
     });
     return counts;
   }, [bookingHistory]);
+
+  const cryoCount = useMemo(() => {
+    const counts = {};
+    const START = "2026-05-28";
+    Object.entries(cryoSlots||{}).forEach(([k, v]) => {
+      if (!v.player) return;
+      const parts = k.split("|");
+      if (parts[1] < START) return;
+      counts[v.player] = (counts[v.player] || 0) + 1;
+    });
+    return counts;
+  }, [cryoSlots]);
 
   const [durationPicker, setDurationPicker] = useState(null); // {practId, time}
   const [defaultDuration, _setDefaultDuration] = useState(60); // 30 ou 60
@@ -2331,10 +2345,13 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
             <span style={{fontSize:10, fontWeight:800, color:k.color, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1,
               textShadow:"0 0 0 transparent", filter:"brightness(0.6)"}}>
               {booking.player}
-              {soinCount[booking.player] > 0 && (
-                <span style={{fontSize:8, fontWeight:700, opacity:0.7, marginLeft:3,
-                  background:k.color+"22", borderRadius:4, padding:"0 3px"}}>
-                  ×{soinCount[booking.player]}
+              {soinCount[booking.player] && (
+                <span style={{fontSize:7, fontWeight:700, opacity:0.8, marginLeft:2,
+                  background:k.color+"22", borderRadius:4, padding:"0 3px", whiteSpace:"nowrap"}}>
+                  {soinCount[booking.player].h60 > 0 && `${soinCount[booking.player].h60}×1h`}
+                  {soinCount[booking.player].h60 > 0 && soinCount[booking.player].h30 > 0 && " "}
+                  {soinCount[booking.player].h30 > 0 && `${soinCount[booking.player].h30}×30'`}
+                  {cryoCount[booking.player] > 0 && ` ❄${cryoCount[booking.player]}`}
                 </span>
               )}
             </span>
