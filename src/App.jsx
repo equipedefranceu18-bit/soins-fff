@@ -2092,8 +2092,8 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       if (!prevOpen && !prevBooking) break; // trou = pas de covering
       const prevOpenDur = open[slotKey(k.id, date, prevTime)];
       const dur = prevBooking ? (prevBooking.duration || 60) : (prevOpenDur || getSlotDuration(k.id, date, prevTime));
-      const slotsNeeded = dur === 60 ? 4 : 2; // 1h=4x15', 30'=2x15'
-      if (back < slotsNeeded) return prevTime; // ce slot est couvert
+      const maxBack = dur === 60 ? 3 : 1;
+      if (back <= maxBack) return prevTime;
       break;
     }
     return null;
@@ -2171,11 +2171,12 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       const strapData = strapSlots[strapKey];
       const strapPlayer = strapData?.player || "";
       const isBooked = !!strapPlayer;
+      const strapH = H30; // strap = 15'
       // Strap passé non réservé → même gris que les autres cases passées
       if (slotPast && !isBooked) {
         return (
           <div key={`${k.id}-${time}`} style={{
-            height: h, flexShrink: 0,
+            height: strapH, flexShrink: 0,
             borderBottom: `1px solid #b8bdd0`,
             borderRight: `1px solid ${T.border}`,
             borderLeft: "3px solid transparent",
@@ -2186,8 +2187,8 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       }
       return (
         <div key={`${k.id}-${time}`} style={{
-          height: h, flexShrink: 0,
-          borderBottom: isHour ? `2px solid ${STRAP_COLOR}55` : `1px solid ${STRAP_COLOR}33`,
+          height: strapH, flexShrink: 0,
+          borderBottom: `1px solid ${STRAP_COLOR}33`,
           borderRight: `1px solid ${T.border}`,
           borderLeft: `3px solid ${STRAP_COLOR}`,
           background: isBooked ? STRAP_COLOR+"44" : STRAP_COLOR+"22",
@@ -2210,12 +2211,12 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
                   <button style={css.deleteBtn} onClick={e=>{e.stopPropagation();toggleStrap(k.id,date,time);}}>✕</button>
                 )}
               </div>
-              <div style={{fontSize:7, color:STRAP_COLOR, fontWeight:600}}>Strap 30'</div>
+              <div style={{fontSize:7, color:STRAP_COLOR, fontWeight:600}}>15'</div>
             </div>
           ) : (
             <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:1}}>
               <span style={{fontSize:11}}>🩹</span>
-              <span style={{fontSize:7, fontWeight:800, color:STRAP_COLOR}}>30'</span>
+              <span style={{fontSize:7, fontWeight:800, color:STRAP_COLOR}}>15'</span>
             </div>
           )}
         </div>
