@@ -1588,6 +1588,17 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
     });
     return counts;
   }, [cryoSlots]);
+  const strapCountStaff = useMemo(() => {
+    const counts = {};
+    const START = "2026-05-28";
+    Object.entries(strapSlots||{}).forEach(([k,v]) => {
+      if (!v.player) return;
+      const d = k.split("|")[1];
+      if (d < START) return;
+      counts[v.player] = (counts[v.player]||0) + 1;
+    });
+    return counts;
+  }, [strapSlots]);
   const [contextMenu, setContextMenu] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [staffViewDay, setStaffViewDay] = useState(todayStr());
@@ -1656,7 +1667,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           }}
           onDelete={() => { unbook(moveModal.practId, moveModal.date, moveModal.time); setMoveModal(null); }}
           onChangeDuration={(dur) => { changeDuration(moveModal.practId, moveModal.date, moveModal.time, dur); setMoveModal(null); }}
-          soinCount={soinCountStaff} cryoCount={cryoCountStaff}
+          soinCount={soinCountStaff} cryoCount={cryoCountStaff} strapCount={strapCountStaff}
           onClose={() => setMoveModal(null)}
         />
       )}
@@ -2113,6 +2124,18 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     return counts;
   }, [cryoSlots]);
 
+  const strapCount = useMemo(() => {
+    const counts = {};
+    const START = "2026-05-28";
+    Object.entries(strapSlots||{}).forEach(([k, v]) => {
+      if (!v.player) return;
+      const parts = k.split("|");
+      if (parts[1] < START) return;
+      counts[v.player] = (counts[v.player] || 0) + 1;
+    });
+    return counts;
+  }, [strapSlots]);
+
   const [durationPicker, setDurationPicker] = useState(null);
   const [selectedCell, setSelectedCell] = useState(null); // `${k.id}|${time}` // {practId, time}
   const [defaultDuration, _setDefaultDuration] = useState(60); // 30 ou 60
@@ -2368,13 +2391,14 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
               filter:"brightness(0.6)"}}>
               {booking.player}
             </span>
-            {selectedCell === `${k.id}|${time}` && soinCount[booking.player] && (
+            {selectedCell === `${k.id}|${time}` && (soinCount[booking.player] || cryoCount[booking.player] > 0 || strapCount[booking.player] > 0) && (
               <span style={{fontSize:7, fontWeight:700, color:k.color, opacity:0.9,
                 background:k.color+"18", borderRadius:4, padding:"1px 4px", whiteSpace:"nowrap", flexShrink:0}}>
-                {soinCount[booking.player].h60 > 0 && `${soinCount[booking.player].h60}×1h`}
-                {soinCount[booking.player].h60 > 0 && soinCount[booking.player].h30 > 0 && " "}
-                {soinCount[booking.player].h30 > 0 && `${soinCount[booking.player].h30}×30'`}
+                {soinCount[booking.player]?.h60 > 0 && `${soinCount[booking.player].h60}×1h`}
+                {soinCount[booking.player]?.h60 > 0 && soinCount[booking.player]?.h30 > 0 && " "}
+                {soinCount[booking.player]?.h30 > 0 && `${soinCount[booking.player].h30}×30'`}
                 {cryoCount[booking.player] > 0 && ` ❄${cryoCount[booking.player]}`}
+                {strapCount[booking.player] > 0 && ` 🩹${strapCount[booking.player]}`}
               </span>
             )}
             {booking.locked && <span style={{fontSize:8, opacity:0.7, flexShrink:0}}>🔒</span>}
@@ -2525,7 +2549,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   );
 }
 
-function BookingActionModal({ modal, kines, pract, onNote, onMove, onDelete, onClose, onChangeDuration, soinCount, cryoCount }) {
+function BookingActionModal({ modal, kines, pract, onNote, onMove, onDelete, onClose, onChangeDuration, soinCount, cryoCount, strapCount }) {
   const { booking, date, time } = modal;
   const otherKines = kines.filter(k => k.id !== modal.practId);
   const isPastDay  = isPast(date);
@@ -2539,11 +2563,12 @@ function BookingActionModal({ modal, kines, pract, onNote, onMove, onDelete, onC
           <div>
             <div style={{fontWeight:800,fontSize:16}}>{booking.player}</div>
             <div style={{fontSize:12,color:"#8b949e"}}>{fmtLong(date)} · {time} · <span style={{color:pract.color}}>{pract.name}</span></div>
-            {(soinCount?.[booking.player] || cryoCount?.[booking.player]) && (
+            {(soinCount?.[booking.player] || cryoCount?.[booking.player] > 0 || strapCount?.[booking.player] > 0) && (
               <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:5}}>
                 {soinCount?.[booking.player]?.h60 > 0 && <span style={{fontSize:10,fontWeight:700,color:"#002395",background:"#002395"+"15",borderRadius:6,padding:"1px 7px"}}>{soinCount[booking.player].h60}×1h</span>}
                 {soinCount?.[booking.player]?.h30 > 0 && <span style={{fontSize:10,fontWeight:700,color:"#002395",background:"#002395"+"15",borderRadius:6,padding:"1px 7px"}}>{soinCount[booking.player].h30}×30'</span>}
                 {cryoCount?.[booking.player] > 0 && <span style={{fontSize:10,fontWeight:700,color:"#0277bd",background:"#4fc3f7"+"22",borderRadius:6,padding:"1px 7px"}}>❄{cryoCount[booking.player]} cryo</span>}
+                {strapCount?.[booking.player] > 0 && <span style={{fontSize:10,fontWeight:700,color:"#ff7043",background:"#ff7043"+"22",borderRadius:6,padding:"1px 7px"}}>🩹{strapCount[booking.player]} strap</span>}
               </div>
             )}
             {booking.note && <div style={{fontSize:11,color:"#8b949e",marginTop:2}}>💬 {noteToDisplay(booking.note)}</div>}
