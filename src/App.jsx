@@ -2933,13 +2933,13 @@ function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
                     : (ti % 2 === 0 ? T.surface : T.surface3+"88");
 
                 return (
-                  <div key={time} onClick={(e) => { if (past) return; if (!hasPlayer) { setContextMenu({colId:col.id, time, x:e.clientX, y:e.clientY}); setConflict(null); } }}
+                  <div key={time} onClick={(e) => { if (past && hasPlayer) return; if (past && !hasPlayer) { setContextMenu({colId:col.id, time, x:e.clientX, y:e.clientY}); setConflict(null); return; } if (!hasPlayer) { setContextMenu({colId:col.id, time, x:e.clientX, y:e.clientY}); setConflict(null); } }}
                     style={{
                       height:SLOT_H, flexShrink:0,
                       background: bg,
                       borderBottom: isHour ? `2px solid ${past?"#b8bdd0":isOpen?colColor+"66":T.border}` : `1px solid ${past?"#b8bdd0":isOpen?colColor+"33":T.border2}`,
                       borderLeft: isOpen ? `3px solid ${colColor}` : "3px solid transparent",
-                      cursor: past ? "default" : "pointer",
+                      cursor: (past && hasPlayer) ? "default" : "pointer",
                       display:"flex", alignItems:"center", justifyContent:"space-between",
                       padding:"0 8px",
                       transition:"background 0.15s",
