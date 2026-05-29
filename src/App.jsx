@@ -2164,7 +2164,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   }
 
   function handleCellClick(practId, time, e) {
-    if (isPastDay) return;
+    if (isPastDay && subMode !== "addPlayer") return;
     const { slotOpen, booking } = getSlotStatus(kines.find(k=>k.id===practId), time);
     if (booking) {
       onCellClick(practId, date, time, defaultDuration, e);
@@ -2354,17 +2354,36 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     let indicator = null;
 
 
-    // Créneau passé sans réservation (ouvert ou fermé) → grisé non cliquable
+    // Créneau passé sans réservation (ouvert ou fermé) → grisé
+    // En mode addPlayer : cliquable pour saisie rétroactive
     if (slotPast && (!booking || (booking.cancelled && !booking.player))) {
+      if (subMode !== "addPlayer") {
+        return (
+          <div key={`${k.id}-${time}`} style={{
+            ...commonStyle,
+            background: isHour ? "#d8dce8" : "#ccd0e0",
+            borderBottom: isHour ? `1px solid #b8bdd0` : `1px solid #c5c9da`,
+            borderLeft: "3px solid transparent",
+            cursor: "default",
+            display:"flex", alignItems:"center", justifyContent:"center",
+          }} />
+        );
+      }
+      // Mode addPlayer sur créneau passé → afficher avec indicateur + cliquable
       return (
         <div key={`${k.id}-${time}`} style={{
           ...commonStyle,
-          background: isHour ? "#d8dce8" : "#ccd0e0",
+          background: isHour ? "#e8ebf4" : "#dde1ef",
           borderBottom: isHour ? `1px solid #b8bdd0` : `1px solid #c5c9da`,
-          borderLeft: "3px solid transparent",
-          cursor: "default",
+          borderLeft: isTarget ? `3px solid ${T.goldBright}` : `3px solid ${k.color}44`,
+          cursor: "pointer",
           display:"flex", alignItems:"center", justifyContent:"center",
-        }} />
+          opacity: 0.75,
+        }}
+          onClick={(e) => { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }}
+          title="Cliquer pour assigner un soin rétroactif">
+          <span style={{fontSize:9, color:k.color, fontWeight:700, opacity:0.6}}>+ retro</span>
+        </div>
       );
     }
 
@@ -2434,9 +2453,9 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         ...commonStyle,
         background: bg, borderLeft: bl,
         display:"flex", alignItems:"center", justifyContent:"center",
-        cursor: isPastDay ? "default" : "pointer",
+        cursor: (isPastDay && subMode !== "addPlayer") ? "default" : "pointer",
       }}
-        onClick={(e) => { if (!isPastDay) { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); } }}
+        onClick={(e) => { if (!isPastDay || subMode === "addPlayer") { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); } }}
         title={booking ? `${booking.player}` : slotOpen ? `Ouvert ${getSlotDuration(k.id,date,time)===60?"1h":"30'"}` : "Fermé — cliquer pour ouvrir"}>
         {indicator}
 
