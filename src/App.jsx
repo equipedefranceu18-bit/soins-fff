@@ -2299,19 +2299,16 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         }}
           onClick={(e) => { if (!isPastDay && !isBooked) onCellClick(k.id, date, time, null, e); }}>
           {isBooked ? (
-            <div style={{width:"100%", padding:"0 4px", overflow:"hidden"}}>
-              <div style={{display:"flex", alignItems:"center", gap:2}}>
-                <span style={{fontSize:9}}>🩹</span>
-                <span style={{fontSize:10, fontWeight:800, color:STRAP_COLOR,
-                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                  filter:"brightness(0.65)", flex:1}}>
-                  {strapPlayer}
-                </span>
-                {!isPastDay && (
-                  <button style={css.deleteBtn} onClick={e=>{e.stopPropagation();toggleStrap(k.id,date,time);}}>✕</button>
-                )}
-              </div>
-              <div style={{fontSize:7, color:STRAP_COLOR, fontWeight:600}}>15'</div>
+            <div style={{width:"100%", padding:"0 4px", display:"flex", alignItems:"center", gap:2, overflow:"hidden"}}>
+              <span style={{fontSize:11, flexShrink:0}}>🩹</span>
+              <span style={{fontSize:11, fontWeight:800, color:STRAP_COLOR,
+                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                filter:"brightness(0.7)", flex:1}}>
+                {strapPlayer}
+              </span>
+              {!isPastDay && (
+                <button style={css.deleteBtn} onClick={e=>{e.stopPropagation();toggleStrap(k.id,date,time);}}>✕</button>
+              )}
             </div>
           ) : (
             <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"0 4px"}}>
