@@ -2076,7 +2076,24 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   // Toujours H30 — alignement parfait garanti entre toutes les colonnes
   // Un slot duration=60 colore les deux lignes H30 correspondantes (time et time+30)
   function buildKineRows(k) {
-    return displayTimes.map(time => ({ time, h: H30 }));
+    const rows = [];
+    let i = 0;
+    while (i < displayTimes.length) {
+      const time = displayTimes[i];
+      const booking = getBooking(k.id, date, time);
+      const slotOpen = isSlotOpen(k.id, date, time);
+      const prevOpenDur = open[slotKey(k.id, date, time)];
+      let dur = 0;
+      if (booking) dur = booking.duration || 60;
+      else if (prevOpenDur) dur = prevOpenDur;
+      else if (slotOpen) dur = getSlotDuration(k.id, date, time);
+      // Nombre d'intervalles de 15' que ce slot occupe
+      const slots = dur === 60 ? 4 : dur === 30 ? 2 : 1;
+      const h = H30 * slots;
+      rows.push({ time, h, merged: slots > 1, nextTime: displayTimes[i + slots] || null });
+      i += slots;
+    }
+    return rows;
   }
 
   // Retourne le time du slot 1h qui "couvre" cette ligne (la 2e moitié d'un bloc 1h)
