@@ -1587,7 +1587,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
 
   const subModes = [
     { key:"slots",     label:"📅 Ouvrir/Fermer", color:"#00d4aa", hint:"Cliquez pour ouvrir ou fermer un créneau (ponctuel)." },
-    { key:"recurring", label:"↺ Récurrence",     color:"#ffd166", hint:"Cliquez pour activer/désactiver la répétition hebdomadaire." },
+
 
     { key:"addPlayer", label:"➕ Assigner",       color:"#a29bfe", hint:"Cliquez sur un créneau libre pour y assigner un joueur." },
     { key:"straps",    label:"🩹 Straps",          color:"#ff7043", hint:"Cliquez sur un créneau pour ouvrir/fermer un strap de 30 min. Couleur orange unique." },
@@ -1784,6 +1784,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           addScheduleBlock={addScheduleBlock}
           deleteScheduleBlock={deleteScheduleBlock}
           onDurationChange={setStaffDefaultDuration}
+          bookingHistory={bookingHistory}
 
         />
       )}
@@ -2048,7 +2049,7 @@ function PlanningEditor({ date, scheduleBlocks, addScheduleBlock, deleteSchedule
 // The time axis shows base 1h slots. Split kinés show 2×30' within their H1 space.
 // Other kinés keep H1 — no forced split bleeding across columns.
 function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpen, isRecurring,
-  getSlotsForContext, isSplit, onCellClick, unbook, toggleOpen, getSlotDuration, strapSlots, toggleStrap, scheduleBlocks, onDurationChange }) {
+  getSlotsForContext, isSplit, onCellClick, unbook, toggleOpen, getSlotDuration, strapSlots, toggleStrap, scheduleBlocks, onDurationChange, bookingHistory }) {
 
   const isPastDay = isPast(date);
   const H30 = 14, HEADER = 48; // 14px par 15 minutes
@@ -2062,6 +2063,17 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     const now = new Date();
     return h < now.getHours() || (h === now.getHours() && m <= now.getMinutes());
   }
+  // Compteur de soins par joueur depuis le 28/05
+  const soinCount = React.useMemo(() => {
+    const counts = {};
+    const START = "2026-05-28";
+    (bookingHistory||[]).forEach(b => {
+      if (b.cancelled || !b.player || b.date < START) return;
+      counts[b.player] = (counts[b.player] || 0) + 1;
+    });
+    return counts;
+  }, [bookingHistory]);
+
   const [durationPicker, setDurationPicker] = useState(null); // {practId, time}
   const [defaultDuration, _setDefaultDuration] = useState(60); // 30 ou 60
   const setDefaultDuration = (d) => { _setDefaultDuration(d); onDurationChange && onDurationChange(d); };
@@ -2318,6 +2330,12 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
             <span style={{fontSize:10, fontWeight:800, color:k.color, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1,
               textShadow:"0 0 0 transparent", filter:"brightness(0.6)"}}>
               {booking.player}
+              {soinCount[booking.player] > 0 && (
+                <span style={{fontSize:8, fontWeight:700, opacity:0.7, marginLeft:3,
+                  background:k.color+"22", borderRadius:4, padding:"0 3px"}}>
+                  ×{soinCount[booking.player]}
+                </span>
+              )}
             </span>
             {booking.locked && <span style={{fontSize:8, opacity:0.7, flexShrink:0}}>🔒</span>}
             {!isPastDay && <button style={css.deleteBtn} onClick={e=>{e.stopPropagation();unbook(k.id,date,time);}}>✕</button>}
