@@ -449,6 +449,20 @@ export default function App() {
     await loadAll();
   }
 
+  async function changeDuration(practId, date, time, newDuration) {
+    await supabase.from("bookings").update({duration: newDuration})
+      .match({pract_id:practId, date, time}).eq("cancelled", false).eq("locked", true);
+    await supabase.from("open_slots").upsert({pract_id:practId, date, time, duration:newDuration}, {onConflict:"pract_id,date,time"});
+    // Si 30' : fermer le :15 suivant pour éviter le covering résiduel
+    if (newDuration === 30) {
+      const mins = parseInt(time.split(":")[1]);
+      const nextMins = mins + 15;
+      const nextTime = `${time.split(":")[0]}:${String(nextMins).padStart(2,"0")}`;
+      await supabase.from("open_slots").delete().match({pract_id:practId, date, time:nextTime});
+    }
+    await loadAll();
+  }
+
   async function unbook(practId, date, time) {
     const date_ = slotKey(practId, date, time).split("|")[1];
     if (isPast(date_)) return;
@@ -1619,6 +1633,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             setMoveModal(null);
           }}
           onDelete={() => { unbook(moveModal.practId, moveModal.date, moveModal.time); setMoveModal(null); }}
+          onChangeDuration={(dur) => { changeDuration(moveModal.practId, moveModal.date, moveModal.time, dur); setMoveModal(null); }}
           onClose={() => setMoveModal(null)}
         />
       )}
@@ -2441,7 +2456,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   );
 }
 
-function BookingActionModal({ modal, kines, pract, onNote, onMove, onDelete, onClose }) {
+function BookingActionModal({ modal, kines, pract, onNote, onMove, onDelete, onClose, onChangeDuration }) {
   const { booking, date, time } = modal;
   const otherKines = kines.filter(k => k.id !== modal.practId);
   const isPastDay  = isPast(date);
@@ -2491,6 +2506,22 @@ function BookingActionModal({ modal, kines, pract, onNote, onMove, onDelete, onC
                 </button>
               ))}
             </div>
+          )}
+
+          {/* Changer durée */}
+          {!isPastDay && onChangeDuration && (
+            <button style={{...css.modalActionBtn, borderColor:"#ffd54f55", color:"#f9a825", background:"#ffd54f11"}}
+              onClick={()=>onChangeDuration(booking.duration===60 ? 30 : 60)}>
+              <span style={{fontSize:18}}>{booking.duration===60 ? "⚡" : "⏱"}</span>
+              <div style={{textAlign:"left"}}>
+                <div style={{fontWeight:700}}>
+                  Passer en {booking.duration===60 ? "30 min" : "1 heure"}
+                </div>
+                <div style={{fontSize:11,opacity:0.6}}>
+                  Actuellement : {booking.duration===60 ? "1h" : "30'"}
+                </div>
+              </div>
+            </button>
           )}
 
           {/* Delete */}
