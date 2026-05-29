@@ -1680,14 +1680,25 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           onClick={()=>{ setDvSubMode(dvSubMode==="planning"?"slots":"planning"); setStaffTarget(null); }}>
           🏃 Planning
         </button>
-        <button style={{
-          ...css.staffActBtn,
-          background: dvSubMode==="cryo" ? CRYO_COLOR+"33" : "#e8f7fd",
-          border: dvSubMode==="cryo" ? `2px solid ${CRYO_COLOR}` : `1px solid ${CRYO_COLOR}66`,
-          color: CRYO_COLOR, fontWeight:800,
-        }} onClick={()=>{ setDvSubMode(dvSubMode==="cryo"?"slots":"cryo"); setStaffTarget(null); }}>
-          ❄️ Cryo
-        </button>
+        {dvSubMode === "cryo" ? (
+          <button style={{
+            ...css.staffActBtn,
+            background: "#002395"+"22",
+            border: `2px solid #002395`,
+            color: "#002395", fontWeight:800,
+          }} onClick={()=>{ setDvSubMode("addPlayer"); setStaffTarget(null); }}>
+            🩺 Soins
+          </button>
+        ) : (
+          <button style={{
+            ...css.staffActBtn,
+            background: "#e8f7fd",
+            border: `1px solid ${CRYO_COLOR}66`,
+            color: CRYO_COLOR, fontWeight:800,
+          }} onClick={()=>{ setDvSubMode("cryo"); setStaffTarget(null); }}>
+            ❄️ Cryo
+          </button>
+        )}
         <button style={{...css.staffActBtn, background:"#f0f4ff", border:`1px solid ${T.navy}44`, color:T.navy}}
           onClick={()=>setShowStats(true)}>
           📊 Stats
