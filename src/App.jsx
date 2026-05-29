@@ -1847,6 +1847,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             toggleStrap={toggleStrap}
             scheduleBlocks={scheduleBlocks}
             bookingHistory={bookingHistory}
+            cryoSlots={cryoSlots}
             onCellClick={(practId, date, time, duration, e) => {
               if (dvSubMode === "straps") {
                 const p = practitioners.find(x => x.id === practId);
@@ -2050,7 +2051,7 @@ function PlanningEditor({ date, scheduleBlocks, addScheduleBlock, deleteSchedule
 // The time axis shows base 1h slots. Split kinés show 2×30' within their H1 space.
 // Other kinés keep H1 — no forced split bleeding across columns.
 function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpen, isRecurring,
-  getSlotsForContext, isSplit, onCellClick, unbook, toggleOpen, getSlotDuration, strapSlots, toggleStrap, scheduleBlocks, onDurationChange, bookingHistory }) {
+  getSlotsForContext, isSplit, onCellClick, unbook, toggleOpen, getSlotDuration, strapSlots, toggleStrap, scheduleBlocks, onDurationChange, bookingHistory, cryoSlots }) {
 
   const isPastDay = isPast(date);
   const H30 = 14, HEADER = 48; // 14px par 15 minutes
