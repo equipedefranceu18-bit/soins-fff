@@ -1566,8 +1566,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
 
   const [dvSubMode, setDvSubMode] = useState("addPlayer");
   const [staffDefaultDuration, setStaffDefaultDuration] = useState(60);
-
-  const soinCount = useMemo(() => {
+  const soinCountStaff = useMemo(() => {
     const counts = {};
     const START = "2026-05-28";
     (bookingHistory||[]).forEach(b => {
@@ -1578,8 +1577,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
     });
     return counts;
   }, [bookingHistory]);
-
-  const cryoCount = useMemo(() => {
+  const cryoCountStaff = useMemo(() => {
     const counts = {};
     const START = "2026-05-28";
     Object.entries(cryoSlots||{}).forEach(([k,v]) => {
@@ -1658,23 +1656,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           }}
           onDelete={() => { unbook(moveModal.practId, moveModal.date, moveModal.time); setMoveModal(null); }}
           onChangeDuration={(dur) => { changeDuration(moveModal.practId, moveModal.date, moveModal.time, dur); setMoveModal(null); }}
-          onSwitch={(fromPlayer, toPlayer) => {
-            // Intervertir deux joueurs : trouver le créneau de toPlayer et swapper
-            const toEntry = Object.entries(bookings).find(([k,v]) => {
-              const [,d] = k.split("|");
-              return d === moveModal.date && v.player === toPlayer && !v.cancelled;
-            });
-            if (toEntry) {
-              const [toKey] = toEntry;
-              const [toPractId,,toTime] = toKey.split("|");
-              // Swap les deux joueurs
-              supabase.from("bookings").update({player:toPlayer}).match({pract_id:moveModal.practId, date:moveModal.date, time:moveModal.time}).eq("cancelled",false).then(()=>{});
-              supabase.from("bookings").update({player:fromPlayer}).match({pract_id:toPractId, date:moveModal.date, time:toTime}).eq("cancelled",false).then(()=>{});
-              setTimeout(loadAll, 300);
-            }
-            setMoveModal(null);
-          }}
-          soinCount={soinCount} cryoCount={cryoCount} players={PLAYERS} bookings={bookings}
+          soinCount={soinCountStaff} cryoCount={cryoCountStaff}
           onClose={() => setMoveModal(null)}
         />
       )}
@@ -2546,7 +2528,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   );
 }
 
-function BookingActionModal({ modal, kines, pract, onNote, onMove, onDelete, onClose, onChangeDuration, onSwitch, soinCount, cryoCount, players, bookings }) {
+function BookingActionModal({ modal, kines, pract, onNote, onMove, onDelete, onClose, onChangeDuration, soinCount, cryoCount }) {
   const { booking, date, time } = modal;
   const otherKines = kines.filter(k => k.id !== modal.practId);
   const isPastDay  = isPast(date);
@@ -2561,10 +2543,10 @@ function BookingActionModal({ modal, kines, pract, onNote, onMove, onDelete, onC
             <div style={{fontWeight:800,fontSize:16}}>{booking.player}</div>
             <div style={{fontSize:12,color:"#8b949e"}}>{fmtLong(date)} · {time} · <span style={{color:pract.color}}>{pract.name}</span></div>
             {(soinCount?.[booking.player] || cryoCount?.[booking.player]) && (
-              <div style={{fontSize:11,color:"#8b949e",marginTop:4,display:"flex",gap:6,flexWrap:"wrap"}}>
-                {soinCount?.[booking.player]?.h60 > 0 && <span style={{background:"#002395"+"18",borderRadius:6,padding:"1px 6px",fontWeight:700,color:"#002395"}}>{soinCount[booking.player].h60}×1h</span>}
-                {soinCount?.[booking.player]?.h30 > 0 && <span style={{background:"#002395"+"18",borderRadius:6,padding:"1px 6px",fontWeight:700,color:"#002395"}}>{soinCount[booking.player].h30}×30'</span>}
-                {cryoCount?.[booking.player] > 0 && <span style={{background:"#4fc3f7"+"22",borderRadius:6,padding:"1px 6px",fontWeight:700,color:"#0277bd"}}>❄{cryoCount[booking.player]} cryo</span>}
+              <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:5}}>
+                {soinCount?.[booking.player]?.h60 > 0 && <span style={{fontSize:10,fontWeight:700,color:"#002395",background:"#002395"+"15",borderRadius:6,padding:"1px 7px"}}>{soinCount[booking.player].h60}×1h</span>}
+                {soinCount?.[booking.player]?.h30 > 0 && <span style={{fontSize:10,fontWeight:700,color:"#002395",background:"#002395"+"15",borderRadius:6,padding:"1px 7px"}}>{soinCount[booking.player].h30}×30'</span>}
+                {cryoCount?.[booking.player] > 0 && <span style={{fontSize:10,fontWeight:700,color:"#0277bd",background:"#4fc3f7"+"22",borderRadius:6,padding:"1px 7px"}}>❄{cryoCount[booking.player]} cryo</span>}
               </div>
             )}
             {booking.note && <div style={{fontSize:11,color:"#8b949e",marginTop:2}}>💬 {noteToDisplay(booking.note)}</div>}
@@ -2604,39 +2586,6 @@ function BookingActionModal({ modal, kines, pract, onNote, onMove, onDelete, onC
               ))}
             </div>
           )}
-
-          {/* Switcher deux joueurs */}
-          {!isPastDay && onSwitch && players && (() => {
-            // Trouver les autres joueurs ayant un créneau ce jour-là
-            const dayPlayers = [...new Set(
-              Object.entries(bookings||{})
-                .filter(([k,v]) => { const [,d]=k.split("|"); return d===date && v.player && v.player!==booking.player && !v.cancelled; })
-                .map(([,v]) => v.player)
-            )].sort();
-            if (!dayPlayers.length) return null;
-            return (
-              <div>
-                <div style={{fontSize:11,color:"#8b949e",padding:"4px 0 6px",textTransform:"uppercase",letterSpacing:1}}>
-                  🔄 Intervertir avec
-                </div>
-                {dayPlayers.map(p => (
-                  <button key={p} style={{
-                    ...css.modalActionBtn,
-                    borderColor:"#ffd16655",
-                    color:"#b8860b",
-                    background:"#ffd16611",
-                    marginBottom:6,
-                  }} onClick={()=>onSwitch(booking.player, p)}>
-                    <span style={{fontSize:18}}>🔄</span>
-                    <div style={{textAlign:"left"}}>
-                      <div style={{fontWeight:700}}>{p}</div>
-                      <div style={{fontSize:11,opacity:0.6}}>Intervertir les créneaux</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            );
-          })()}
 
           {/* Changer durée */}
           {!isPastDay && onChangeDuration && (
