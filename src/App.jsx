@@ -2295,7 +2295,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       const strapPlayer = strapData?.player || "";
       const isBooked = !!strapPlayer;
       const strapH = H30; // strap = 15'
-      // Strap passé non réservé → même gris que les autres cases passées
+      // Strap passé non réservé → gris, cliquable en mode straps
       if (slotPast && !isBooked) {
         return (
           <div key={`${k.id}-${time}`} style={{
@@ -2305,7 +2305,9 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
             borderLeft: "3px solid transparent",
             background: "#ccd0e0",
             overflow:"hidden",
-          }} />
+            cursor: subMode === "straps" ? "pointer" : "default",
+          }}
+            onClick={(e) => { if (subMode === "straps") onCellClick(k.id, date, time, null, e); }} />
         );
       }
       return (
@@ -2316,11 +2318,11 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           borderLeft: `3px solid ${STRAP_COLOR}`,
           background: isBooked ? STRAP_COLOR+"44" : STRAP_COLOR+"22",
           display:"flex", alignItems:"center", justifyContent:"center",
-          cursor: !isPastDay && subMode === "straps" ? "pointer" : "default",
+          cursor: subMode === "straps" && !isBooked ? "pointer" : "default",
           opacity: slotPast ? 0.6 : 1,
           overflow:"hidden",
         }}
-          onClick={(e) => { if (!isPastDay && !isBooked) onCellClick(k.id, date, time, null, e); }}>
+          onClick={(e) => { if (subMode === "straps" && !isBooked) onCellClick(k.id, date, time, null, e); }}>
           {isBooked ? (
             <div style={{width:"100%", padding:"0 4px", display:"flex", alignItems:"center", gap:2, overflow:"hidden"}}>
               <span style={{fontSize:11, flexShrink:0}}>🩹</span>
