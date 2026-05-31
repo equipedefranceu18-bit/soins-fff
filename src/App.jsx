@@ -1567,7 +1567,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
   unbook, staffBookSlot, addNote, moveBooking, changeDuration, staffTarget, setStaffTarget,
   staffPlayerName, setStaffPlayerName,
   getSlotsForContext, isSplit, toggleSplit, BASE_SLOTS, isHalfSlot,
-  getPastBookings, getSlotDuration, bookings, bookingHistory, strapSlots, toggleStrap, bookStrap, cryoSlots, setCryoSlots,
+  getPastBookings, getSlotDuration, bookings, bookingHistory, strapSlots, toggleStrap, bookStrap, setStrapCount, cryoSlots, setCryoSlots,
   scheduleBlocks, addScheduleBlock, deleteScheduleBlock, PLAYERS, setView }) {
 
   const [dvSubMode, setDvSubMode] = useState("addPlayer");
