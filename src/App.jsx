@@ -471,7 +471,6 @@ export default function App() {
 
   async function unbook(practId, date, time) {
     const date_ = slotKey(practId, date, time).split("|")[1];
-    if (isPast(date_)) return;
     // Supprimer booking + open_slot pour que le créneau disparaisse complètement
     await supabase.from("bookings").delete().match({pract_id:practId, date, time});
     await supabase.from("open_slots").delete().match({pract_id:practId, date, time});
@@ -2424,7 +2423,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
               </span>
             )}
             {booking.locked && <span style={{fontSize:8, opacity:0.7, flexShrink:0}}>🔒</span>}
-            {!isPastDay && <button style={css.deleteBtn} onClick={e=>{e.stopPropagation();unbook(k.id,date,time);}}>✕</button>}
+            <button style={css.deleteBtn} onClick={e=>{e.stopPropagation();unbook(k.id,date,time);}}>✕</button>
           </div>
           {booking.note && (
             <div style={{fontSize:8, color:T.textDim, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
