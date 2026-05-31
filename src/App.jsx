@@ -2364,10 +2364,13 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           background: isHour ? "#d8dce8" : "#ccd0e0",
           borderBottom: isHour ? `1px solid #b8bdd0` : `1px solid #c5c9da`,
           borderLeft: "3px solid transparent",
-          cursor: subMode === "addPlayer" ? "pointer" : "default",
+          cursor: (subMode === "addPlayer" || subMode === "straps") ? "pointer" : "default",
           display:"flex", alignItems:"center", justifyContent:"center",
         }}
-          onClick={(e) => { if (subMode === "addPlayer") { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); } }}
+          onClick={(e) => {
+            if (subMode === "addPlayer") { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }
+            else if (subMode === "straps" && isKine) { toggleStrap(k.id, date, time); }
+          }}
           title={subMode === "addPlayer" ? "Assigner un soin rétroactif" : undefined} />
       );
     }
