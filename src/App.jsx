@@ -1804,6 +1804,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
         <CryoPlanning
           date={dvDate}
           cryoSlots={cryoSlots}
+          strapSlots={strapSlots}
           players={PLAYERS}
           loadAll={loadAll}
           bookings={bookings}
@@ -2786,7 +2787,7 @@ function NoteModal({ note, player, date, time, pract, onSave, onClose }) {
 
 // ─── Stats Modal ──────────────────────────────────────────────────────────────
 // ─── Cryo Planning ───────────────────────────────────────────────────────────
-function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
+function CryoPlanning({ date, cryoSlots, strapSlots, players, loadAll, bookings }) {
   const SLOT_H = 36;
   const [contextMenu, setContextMenu] = useState(null); // {colId, time, x, y}
   const [conflict, setConflict] = useState(null);
@@ -2882,6 +2883,18 @@ function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
     return counts;
   }, [cryoSlots]);
 
+  const strapPlayerCount = useMemo(() => {
+    const counts = {};
+    const START = "2026-05-28";
+    Object.entries(strapSlots||{}).forEach(([k, v]) => {
+      if (!v.player) return;
+      const parts = k.split("|");
+      if (parts[1] < START) return;
+      counts[v.player] = (counts[v.player] || 0) + 1;
+    });
+    return counts;
+  }, [strapSlots]);
+
   const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
 
   return (
@@ -2966,6 +2979,11 @@ function CryoPlanning({ date, cryoSlots, players, loadAll, bookings }) {
                           {cryoPlayerCount[slot.player] > 0 && (
                             <span style={{fontSize:9, marginLeft:4, opacity:0.85}}>
                               ❄{cryoPlayerCount[slot.player]}
+                            </span>
+                          )}
+                          {strapPlayerCount[slot.player] > 0 && (
+                            <span style={{fontSize:9, marginLeft:3, opacity:0.85}}>
+                              🩹{strapPlayerCount[slot.player]}
                             </span>
                           )}
                         </span>
