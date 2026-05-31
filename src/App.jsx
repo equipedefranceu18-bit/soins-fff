@@ -146,7 +146,7 @@ export default function App() {
       const bm={}; const stm={}; const allHistory=[];
       (b.data||[]).forEach(x => {
         if (x.pract_id && x.pract_id.startsWith(STRAP_ID+"_")) {
-          stm[`${x.pract_id}|${x.date}|${x.time}`] = { player: x.player || "", locked: x.locked };
+          stm[`${x.pract_id}|${x.date}|${x.time}`] = { player: x.player || "", locked: x.locked, strap_count: x.strap_count ?? 1 };
         } else {
           const entry = {id:x.id,player:x.player||"",locked:x.locked,note:x.note||"",duration:x.duration||60,cancelled:x.cancelled||false,booked_at:x.booked_at||null,cancelled_at:x.cancelled_at||null,cancelled_player:x.cancelled_player||""};
           allHistory.push({pId:x.pract_id, date:x.date, time:x.time, ...entry});
@@ -286,6 +286,12 @@ export default function App() {
     await supabase.from("bookings")
       .update({ player, locked: false })
       .eq("pract_id", practId).eq("date", date).eq("time", time);
+    await loadAll();
+  }
+
+  async function setStrapCount(kineId, date, time, count) {
+    const practId = strapPractId(kineId);
+    await supabase.from("bookings").update({ strap_count: count }).eq("pract_id", practId).eq("date", date).eq("time", time);
     await loadAll();
   }
 
@@ -615,7 +621,7 @@ export default function App() {
           getSlotDuration={getSlotDuration}
           bookings={bookings}
           bookingHistory={bookingHistory}
-          strapSlots={strapSlots} toggleStrap={toggleStrap} bookStrap={bookStrap}
+          strapSlots={strapSlots} toggleStrap={toggleStrap} bookStrap={bookStrap} setStrapCount={setStrapCount}
           cryoSlots={cryoSlots} setCryoSlots={setCryoSlots} loadAll={loadAll}
           scheduleBlocks={scheduleBlocks} addScheduleBlock={addScheduleBlock} deleteScheduleBlock={deleteScheduleBlock}
           PLAYERS={PLAYERS} setView={setView}
@@ -1595,7 +1601,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
       if (!v.player) return;
       const d = k.split("|")[1];
       if (d < START) return;
-      counts[v.player] = (counts[v.player]||0) + 1;
+      counts[v.player] = (counts[v.player]||0) + (v.strap_count || 1);
     });
     return counts;
   }, [strapSlots]);
@@ -1880,6 +1886,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             toggleOpen={toggleOpen}
             strapSlots={strapSlots}
             toggleStrap={toggleStrap}
+            setStrapCount={setStrapCount}
             scheduleBlocks={scheduleBlocks}
             bookingHistory={bookingHistory}
             cryoSlots={cryoSlots}
@@ -2086,7 +2093,7 @@ function PlanningEditor({ date, scheduleBlocks, addScheduleBlock, deleteSchedule
 // The time axis shows base 1h slots. Split kinés show 2×30' within their H1 space.
 // Other kinés keep H1 — no forced split bleeding across columns.
 function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpen, isRecurring,
-  getSlotsForContext, isSplit, onCellClick, unbook, toggleOpen, getSlotDuration, strapSlots, toggleStrap, scheduleBlocks, onDurationChange, bookingHistory, cryoSlots }) {
+  getSlotsForContext, isSplit, onCellClick, unbook, toggleOpen, getSlotDuration, strapSlots, toggleStrap, setStrapCount, scheduleBlocks, onDurationChange, bookingHistory, cryoSlots }) {
 
   const isPastDay = isPast(date);
   const H30 = 14, HEADER = 48; // 14px par 15 minutes
@@ -2132,7 +2139,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
       if (!v.player) return;
       const parts = k.split("|");
       if (parts[1] < START) return;
-      counts[v.player] = (counts[v.player] || 0) + 1;
+      counts[v.player] = (counts[v.player] || 0) + (v.strap_count || 1);
     });
     return counts;
   }, [strapSlots]);
@@ -2325,16 +2332,23 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         }}
           onClick={(e) => { if (subMode === "straps" && !isBooked) onCellClick(k.id, date, time, null, e); }}>
           {isBooked ? (
-            <div style={{width:"100%", padding:"0 4px", display:"flex", alignItems:"center", gap:2, overflow:"hidden"}}>
-              <span style={{fontSize:11, flexShrink:0}}>🩹</span>
-              <span style={{fontSize:11, fontWeight:800, color:STRAP_COLOR,
+            <div style={{width:"100%", padding:"0 2px", display:"flex", alignItems:"center", gap:2, overflow:"hidden"}}>
+              <span style={{fontSize:10, flexShrink:0}}>🩹</span>
+              <span style={{fontSize:10, fontWeight:800, color:STRAP_COLOR,
                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                 filter:"brightness(0.7)", flex:1}}>
                 {strapPlayer}
               </span>
-              {!isPastDay && (
-                <button style={css.deleteBtn} onClick={e=>{e.stopPropagation();toggleStrap(k.id,date,time);}}>✕</button>
-              )}
+              <button
+                onClick={e=>{e.stopPropagation(); setStrapCount(k.id,date,time, strapData.strap_count===2?1:2);}}
+                title={strapData.strap_count===2?"Passer à 1 strap":"Passer à 2 straps"}
+                style={{flexShrink:0, background:strapData.strap_count===2?STRAP_COLOR:STRAP_COLOR+"33",
+                  border:"none", borderRadius:4, cursor:"pointer", fontSize:9,
+                  fontWeight:800, color:strapData.strap_count===2?"#fff":STRAP_COLOR,
+                  padding:"1px 4px", lineHeight:1.2}}>
+                ×{strapData.strap_count||1}
+              </button>
+              <button style={css.deleteBtn} onClick={e=>{e.stopPropagation();toggleStrap(k.id,date,time);}}>✕</button>
             </div>
           ) : (
             <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"0 4px"}}>
@@ -2890,7 +2904,7 @@ function CryoPlanning({ date, cryoSlots, strapSlots, players, loadAll, bookings 
       if (!v.player) return;
       const parts = k.split("|");
       if (parts[1] < START) return;
-      counts[v.player] = (counts[v.player] || 0) + 1;
+      counts[v.player] = (counts[v.player] || 0) + (v.strap_count || 1);
     });
     return counts;
   }, [strapSlots]);
