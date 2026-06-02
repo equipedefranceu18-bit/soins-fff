@@ -2702,7 +2702,7 @@ function BookingActionModal({ modal, kines, pract, onNote, onMove, onDelete, onC
 
 // ─── Soins items config ──────────────────────────────────────────────────────
 const SOIN_ITEMS_SIMPLE = ["Récup", "Étirements", "Contusion", "Isocinétique", "Ondes de choc", "Activation", "Mobilisation", "NMP", "D-N", "T-M"];
-const SOIN_ITEMS_SIDE   = ["Genou", "Cheville", "Tendon d'Achille", "Tendon rotulien", "Mollet", "Quadriceps", "Ischio-jambiers", "Dos", "Pubalgie", "Aponévrosite"];
+const SOIN_ITEMS_SIDE   = ["Genou", "Cheville", "Tendon d'Achille", "Tendon rotulien", "Mollet", "Quadriceps", "Ischio-jambiers", "Adducteurs", "Dos", "Pubalgie", "Aponévrosite"];
 
 // Sérialiser/désérialiser la note (JSON enrichi + texte libre)
 function parseNote(raw) {
