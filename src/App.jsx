@@ -2098,6 +2098,12 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
 
   const isPastDay = isPast(date);
   const H30 = 14, HEADER = 48; // 14px par 15 minutes
+  const [localAvatarModal, setLocalAvatarModal] = useState(null);
+  const handleAvatarClick = (k) => {
+    if (!k.avatar) return;
+    if (setAvatarModal) setAvatarModal(k);
+    else setLocalAvatarModal(k);
+  };
 
   // Vrai si ce créneau est dans le passé (jour passé OU aujourd'hui mais heure dépassée)
   function isSlotPast(time) {
@@ -2529,12 +2535,12 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
             }}>
               <div
                 style={{...css.practAvatar, background:k.color, width:30, height:30, fontSize:11, flexShrink:0, cursor: k.avatar ? "pointer" : "default"}}
-                onClick={() => k.avatar && setAvatarModal && setAvatarModal(k)}
+                onClick={() => handleAvatarClick(k)}
                 title={k.avatar ? "Voir la photo" : undefined}
               >{k.initials}</div>
               <span
                 style={{fontSize:13, fontWeight:700, color:k.color, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor: k.avatar ? "pointer" : "default"}}
-                onClick={() => k.avatar && setAvatarModal && setAvatarModal(k)}
+                onClick={() => handleAvatarClick(k)}
               >{k.name}</span>
             </div>
             {/* Per slot: use buildKineRows to merge consecutive 30' pairs */}
@@ -2574,6 +2580,25 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
             </div>
           );
         })}
+      {/* Local avatar modal fallback */}
+      {localAvatarModal && (
+        <div onClick={() => setLocalAvatarModal(null)} style={{
+          position:"fixed", inset:0, zIndex:9999,
+          background:"rgba(0,0,0,0.85)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          cursor:"pointer",
+        }}>
+          <img src={localAvatarModal.avatar} alt={localAvatarModal.name}
+            style={{maxHeight:"92vh", maxWidth:"92vw", borderRadius:16, boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}
+            onClick={e => e.stopPropagation()}
+          />
+          <button onClick={() => setLocalAvatarModal(null)} style={{
+            position:"absolute", top:20, right:24,
+            background:"none", border:"none", color:"#fff",
+            fontSize:32, cursor:"pointer", lineHeight:1,
+          }}>✕</button>
+        </div>
+      )}
       </div>
     </div>
   );
