@@ -2100,9 +2100,9 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   const H30 = 14, HEADER = 48; // 14px par 15 minutes
   const [localAvatarModal, setLocalAvatarModal] = useState(null);
   const handleAvatarClick = (k) => {
-    if (!k.avatar) return;
-    if (setAvatarModal) setAvatarModal(k);
-    else setLocalAvatarModal(k);
+    console.log('avatar click', k.name, 'has avatar:', !!k.avatar);
+    if (!k.avatar) { alert('Pas d avatar pour ' + k.name); return; }
+    setLocalAvatarModal(k);
   };
 
   // Vrai si ce créneau est dans le passé (jour passé OU aujourd'hui mais heure dépassée)
