@@ -84,10 +84,17 @@ function get7Days(dayOffset = 0) {
 }
 
 function todayStr() {
-  return new Date().toISOString().split("T")[0];
+  const d = new Date();
+  return d.getFullYear() + "-" +
+    String(d.getMonth()+1).padStart(2,"0") + "-" +
+    String(d.getDate()).padStart(2,"0");
 }
 
-function fmtDate(d) { return d.toISOString().split("T")[0]; }
+function fmtDate(d) {
+  return d.getFullYear() + "-" +
+    String(d.getMonth()+1).padStart(2,"0") + "-" +
+    String(d.getDate()).padStart(2,"0");
+}
 
 function fmtDisplay(d) {
   return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
@@ -413,9 +420,9 @@ export default function App() {
       // Supprimer les 7 prochains jours (jour courant inclus)
       const deletes = [];
       for (let i = 0; i < 7; i++) {
-        const d = new Date(date);
+        const d = new Date(date+"T12:00:00");
         d.setDate(d.getDate() + i);
-        const ds = d.toISOString().split("T")[0];
+        const ds = fmtDate(d);
         deletes.push(
           supabase.from("open_slots").delete().match({pract_id:practId, date:ds, time})
         );
@@ -425,9 +432,9 @@ export default function App() {
       // Ouvrir les 7 prochains jours (jour courant inclus)
       const upserts = [];
       for (let i = 0; i < 7; i++) {
-        const d = new Date(date);
+        const d = new Date(date+"T12:00:00");
         d.setDate(d.getDate() + i);
-        const ds = d.toISOString().split("T")[0];
+        const ds = fmtDate(d);
         upserts.push(
           supabase.from("open_slots").upsert({pract_id:practId, date:ds, time, duration}, {onConflict:"pract_id,date,time"})
         );
