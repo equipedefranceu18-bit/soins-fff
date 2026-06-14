@@ -83,13 +83,13 @@ function get7Days(dayOffset = 0) {
   });
 }
 
-
 function todayStr() {
   const d = new Date();
   return d.getFullYear() + "-" +
     String(d.getMonth()+1).padStart(2,"0") + "-" +
     String(d.getDate()).padStart(2,"0");
 }
+
 function fmtDate(d) {
   return d.getFullYear() + "-" +
     String(d.getMonth()+1).padStart(2,"0") + "-" +
@@ -2883,7 +2883,7 @@ function CryoPlanning({ date, cryoSlots, strapSlots, players, loadAll, bookings 
   }
 
   const now = new Date();
-  const todayS = now.toISOString().split("T")[0];
+  const todayS = todayStr();
   function isTimePast(time) {
     if (date < todayS) return true;
     if (date > todayS) return false;
@@ -3320,7 +3320,7 @@ function StatsModal({ onClose, bookings, practitioners, bookingHistory, strapSlo
         {statsTab === "joueurs" && (() => {
           // Collecter soins classiques (non annulés) depuis bookingHistory
           const playerData = {};
-          const today = new Date().toISOString().split("T")[0];
+          const today = todayStr();
           // Soins classiques passés
           for (const b of (bookingHistory||[])) {
             if (b.cancelled) continue;
