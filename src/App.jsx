@@ -2043,7 +2043,15 @@ function PlanningEditor({ date, scheduleBlocks, addScheduleBlock, deleteSchedule
         <div style={{display:"flex", gap:10, alignItems:"flex-end", flexWrap:"wrap"}}>
           <div style={{flex:1, minWidth:100}}>
             <div style={{...css.label, marginBottom:4}}>De</div>
-            <input type="time" style={css.input} value={timeStart} onChange={e=>setTimeStart(e.target.value)} />
+            <input type="time" style={css.input} value={timeStart} onChange={e=>{
+              const val = e.target.value;
+              setTimeStart(val);
+              if (val) {
+                const [h, m] = val.split(":").map(Number);
+                const endH = (h + 1) % 24;
+                setTimeEnd(`${String(endH).padStart(2,"0")}:${String(m).padStart(2,"0")}`);
+              }
+            }} />
           </div>
           <div style={{flex:1, minWidth:100}}>
             <div style={{...css.label, marginBottom:4}}>À</div>
