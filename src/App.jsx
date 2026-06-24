@@ -1978,171 +1978,182 @@ const BLOCK_PRESETS = [
 
 // ─── Mémento ─────────────────────────────────────────────────────────────────
 const MEMENTO_DEFAULT_ITEMS = [
-  { id:"glace",    label:"Vessies de glace",      emoji:"🧊" },
-  { id:"glac_fr",  label:"Glacière fraîche",       emoji:"❄️" },
-  { id:"glac_tp",  label:"Glacière tempérée",      emoji:"🌡️" },
-  { id:"serviettes",label:"Serviettes",            emoji:"🏊" },
-  { id:"gel",      label:"Gel échographe",         emoji:"💧" },
-  { id:"sparadrap",label:"Sparadrap / strapping",  emoji:"🩹" },
-  { id:"table",    label:"Tables de massage",      emoji:"🛏️" },
-  { id:"oreillers",label:"Oreillers / rouleaux",   emoji:"🪗" },
-  { id:"matelas",  label:"Matelas de sol",         emoji:"🧘" },
-  { id:"huile",    label:"Huile de massage",       emoji:"🫙" },
-  { id:"boisson",  label:"Boissons récupération",  emoji:"🥤" },
-  { id:"chaussettes",label:"Chaussettes de compression", emoji:"🧦" },
+  { id:"glace",      label:"Vessies de glace",             emoji:"🧊" },
+  { id:"glac_fr",    label:"Glacière fraîche",              emoji:"❄️" },
+  { id:"glac_tp",    label:"Glacière tempérée",             emoji:"🌡️" },
+  { id:"serviettes", label:"Serviettes",                    emoji:"🏊" },
+  { id:"gel",        label:"Gel échographe",                emoji:"💧" },
+  { id:"sparadrap",  label:"Sparadrap / strapping",         emoji:"🩹" },
+  { id:"table",      label:"Tables de massage",             emoji:"🛏️" },
+  { id:"oreillers",  label:"Oreillers / rouleaux",          emoji:"🪗" },
+  { id:"matelas",    label:"Matelas de sol",                emoji:"🧘" },
+  { id:"huile",      label:"Huile de massage",              emoji:"🫙" },
+  { id:"boisson",    label:"Boissons récupération",         emoji:"🥤" },
+  { id:"chaussettes",label:"Chaussettes de compression",    emoji:"🧦" },
 ];
 
 function MementoView({ date }) {
   const storageKey = `memento_${date}`;
 
-  // Charger l'état coché depuis localStorage
   function loadChecked() {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
+    try { const r = localStorage.getItem(storageKey); return r ? JSON.parse(r) : {}; }
+    catch { return {}; }
   }
-  function loadCustomItems() {
-    try {
-      const raw = localStorage.getItem("memento_custom_items");
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
+  function loadAllItems() {
+    try { const r = localStorage.getItem("memento_all_items"); return r ? JSON.parse(r) : MEMENTO_DEFAULT_ITEMS; }
+    catch { return MEMENTO_DEFAULT_ITEMS; }
   }
 
-  const [checked, setChecked] = useState(loadChecked);
-  const [customItems, setCustomItems] = useState(loadCustomItems);
+  const [checked,  setChecked]  = useState(loadChecked);
+  const [allItems, setAllItems] = useState(loadAllItems);
   const [newLabel, setNewLabel] = useState("");
+  const [newEmoji, setNewEmoji] = useState("📌");
+  const [editingId, setEditingId] = useState(null);   // id de l'item en cours d'édition
+  const [editLabel, setEditLabel] = useState("");
+  const [editEmoji, setEditEmoji] = useState("");
 
-  // Persister à chaque changement
   useEffect(() => {
     try { localStorage.setItem(storageKey, JSON.stringify(checked)); } catch {}
   }, [checked, storageKey]);
   useEffect(() => {
-    try { localStorage.setItem("memento_custom_items", JSON.stringify(customItems)); } catch {}
-  }, [customItems]);
-
-  // Recharger quand la date change
-  useEffect(() => {
-    setChecked(loadChecked());
-  }, [date]);
+    try { localStorage.setItem("memento_all_items", JSON.stringify(allItems)); } catch {}
+  }, [allItems]);
+  useEffect(() => { setChecked(loadChecked()); }, [date]);
 
   function toggle(id) {
     setChecked(prev => ({ ...prev, [id]: !prev[id] }));
   }
-  function addCustom() {
+  function addItem() {
     if (!newLabel.trim()) return;
-    const id = "custom_" + Date.now();
-    setCustomItems(prev => [...prev, { id, label: newLabel.trim(), emoji: "📌" }]);
-    setNewLabel("");
+    const id = "item_" + Date.now();
+    setAllItems(prev => [...prev, { id, label: newLabel.trim(), emoji: newEmoji || "📌" }]);
+    setNewLabel(""); setNewEmoji("📌");
   }
-  function removeCustom(id) {
-    setCustomItems(prev => prev.filter(x => x.id !== id));
+  function deleteItem(id) {
+    setAllItems(prev => prev.filter(x => x.id !== id));
     setChecked(prev => { const n = {...prev}; delete n[id]; return n; });
   }
-  function resetAll() {
-    setChecked({});
+  function startEdit(item) {
+    setEditingId(item.id); setEditLabel(item.label); setEditEmoji(item.emoji);
   }
+  function saveEdit() {
+    if (!editLabel.trim()) return;
+    setAllItems(prev => prev.map(x => x.id === editingId
+      ? { ...x, label: editLabel.trim(), emoji: editEmoji || x.emoji }
+      : x
+    ));
+    setEditingId(null);
+  }
+  function resetAll()   { setChecked({}); }
+  function resetItems() { setAllItems(MEMENTO_DEFAULT_ITEMS); setChecked({}); }
 
-  const allItems = [...MEMENTO_DEFAULT_ITEMS, ...customItems];
   const doneCount = allItems.filter(x => checked[x.id]).length;
   const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+
+  const QUICK_EMOJIS = ["🧊","❄️","🌡️","🏊","💧","🩹","🛏️","🪗","🧘","🫙","🥤","🧦","📌","✅","⚡","🎯","💊","🏋️","🧴","🩺","🔧","📦"];
 
   return (
     <div style={{padding:"0 20px 60px"}}>
       {/* Header */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
         <div>
           <div style={{fontSize:14,fontWeight:800,color:"#7c3aed",marginBottom:2}}>📋 Mémento — {dateLabel}</div>
-          <div style={{fontSize:12,color:T.textDim}}>
-            {doneCount}/{allItems.length} éléments cochés
-          </div>
+          <div style={{fontSize:12,color:T.textDim}}>{doneCount}/{allItems.length} éléments cochés</div>
         </div>
-        {doneCount > 0 && (
-          <button onClick={resetAll} style={{
-            padding:"6px 14px",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",
-            background:"#fff0f0",border:`1px solid ${T.red}44`,color:T.red,
-          }}>
-            🔄 Tout décocher
+        <div style={{display:"flex",gap:6}}>
+          {doneCount > 0 && (
+            <button onClick={resetAll} style={{padding:"6px 12px",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",background:"#fff0f0",border:`1px solid ${T.red}44`,color:T.red}}>
+              🔄 Tout décocher
+            </button>
+          )}
+          <button onClick={()=>{ if(window.confirm("Remettre la liste par défaut ?")) resetItems(); }} style={{padding:"6px 12px",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",background:T.surface2,border:`1px solid ${T.border}`,color:T.textDim}}>
+            ↺ Réinitialiser
           </button>
-        )}
+        </div>
       </div>
 
       {/* Barre de progression */}
       <div style={{height:8,background:T.surface3,borderRadius:4,overflow:"hidden",marginBottom:20}}>
-        <div style={{
-          height:"100%",borderRadius:4,
-          background:"linear-gradient(90deg,#7c3aed,#a855f7)",
-          width:`${allItems.length ? Math.round(doneCount/allItems.length*100) : 0}%`,
-          transition:"width 0.3s",
-        }} />
+        <div style={{height:"100%",borderRadius:4,background:"linear-gradient(90deg,#7c3aed,#a855f7)",width:`${allItems.length?Math.round(doneCount/allItems.length*100):0}%`,transition:"width 0.3s"}} />
       </div>
 
-      {/* Liste des items */}
-      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24}}>
+      {/* Liste */}
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:24}}>
         {allItems.map(item => {
           const done = !!checked[item.id];
-          const isCustom = item.id.startsWith("custom_");
+          const isEditing = editingId === item.id;
+
+          if (isEditing) {
+            return (
+              <div key={item.id} style={{background:"#faf5ff",border:"2px solid #a855f7",borderRadius:14,padding:"12px 14px"}}>
+                {/* Sélecteur emoji rapide */}
+                <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+                  {QUICK_EMOJIS.map(e => (
+                    <button key={e} onClick={()=>setEditEmoji(e)} style={{
+                      width:32,height:32,borderRadius:8,fontSize:16,cursor:"pointer",
+                      background: editEmoji===e ? "#7c3aed" : T.surface2,
+                      border:`2px solid ${editEmoji===e?"#7c3aed":T.border}`,
+                    }}>{e}</button>
+                  ))}
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <input style={{...css.input,flex:1,fontSize:14}} value={editLabel} onChange={e=>setEditLabel(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveEdit()} autoFocus />
+                  <button onClick={saveEdit} style={{...css.btn,...css.btnConfirm,padding:"8px 14px",fontSize:13,flexShrink:0}}>✓</button>
+                  <button onClick={()=>setEditingId(null)} style={{...css.btn,background:T.surface2,color:T.textDim,border:`1px solid ${T.border}`,padding:"8px 12px",fontSize:13,flexShrink:0}}>✕</button>
+                </div>
+              </div>
+            );
+          }
+
           return (
-            <div key={item.id} onClick={()=>toggle(item.id)} style={{
-              display:"flex",alignItems:"center",gap:14,
-              padding:"14px 16px",borderRadius:14,cursor:"pointer",
+            <div key={item.id} style={{
+              display:"flex",alignItems:"center",gap:12,
+              padding:"12px 14px",borderRadius:14,
               background: done ? "#f0fdf4" : T.surface,
-              border: `2px solid ${done ? "#86efac" : T.border}`,
-              boxShadow: done ? "none" : "0 1px 4px rgba(0,35,149,0.06)",
-              transition:"all 0.2s",
-              opacity: done ? 0.75 : 1,
+              border:`2px solid ${done?"#86efac":T.border}`,
+              boxShadow: done?"none":"0 1px 4px rgba(0,35,149,0.06)",
+              transition:"all 0.2s", opacity: done?0.75:1,
             }}>
-              {/* Checkbox */}
-              <div style={{
-                width:26,height:26,borderRadius:8,flexShrink:0,
-                background: done ? "#16a34a" : T.surface2,
-                border: `2px solid ${done ? "#16a34a" : T.border}`,
-                display:"flex",alignItems:"center",justifyContent:"center",
-                transition:"all 0.2s",
+              {/* Checkbox — clic sur toute la zone gauche */}
+              <div onClick={()=>toggle(item.id)} style={{
+                width:26,height:26,borderRadius:8,flexShrink:0,cursor:"pointer",
+                background: done?"#16a34a":T.surface2,
+                border:`2px solid ${done?"#16a34a":T.border}`,
+                display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s",
               }}>
                 {done && <span style={{color:"#fff",fontSize:14,fontWeight:900}}>✓</span>}
               </div>
-              {/* Emoji + label */}
-              <span style={{fontSize:20,flexShrink:0}}>{item.emoji}</span>
-              <span style={{
-                flex:1,fontSize:15,fontWeight:600,
-                color: done ? "#16a34a" : T.text,
-                textDecoration: done ? "line-through" : "none",
-                transition:"all 0.2s",
-              }}>{item.label}</span>
-              {/* Supprimer custom */}
-              {isCustom && (
-                <button onClick={e=>{e.stopPropagation();removeCustom(item.id);}} style={{
-                  background:"none",border:"none",cursor:"pointer",
-                  color:T.textDim,fontSize:16,padding:"0 4px",flexShrink:0,
-                }}>✕</button>
-              )}
+              <span style={{fontSize:18,flexShrink:0}}>{item.emoji}</span>
+              <span onClick={()=>toggle(item.id)} style={{flex:1,fontSize:14,fontWeight:600,cursor:"pointer",color:done?"#16a34a":T.text,textDecoration:done?"line-through":"none",transition:"all 0.2s"}}>
+                {item.label}
+              </span>
+              {/* Boutons modifier / supprimer */}
+              <button onClick={e=>{e.stopPropagation();startEdit(item);}} style={{background:"none",border:"none",cursor:"pointer",color:"#7c3aed",fontSize:15,padding:"2px 6px",flexShrink:0,opacity:0.7}} title="Modifier">✏️</button>
+              <button onClick={e=>{e.stopPropagation();deleteItem(item.id);}} style={{background:"none",border:"none",cursor:"pointer",color:T.red,fontSize:15,padding:"2px 4px",flexShrink:0,opacity:0.7}} title="Supprimer">🗑</button>
             </div>
           );
         })}
       </div>
 
-      {/* Ajouter un élément custom */}
-      <div style={{
-        background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,
-        padding:16,boxShadow:"0 1px 4px rgba(0,35,149,0.06)",
-      }}>
+      {/* Ajouter */}
+      <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,padding:16,boxShadow:"0 1px 4px rgba(0,35,149,0.06)"}}>
         <div style={{...css.label,marginBottom:10}}>Ajouter un élément</div>
+        {/* Sélecteur emoji */}
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+          {QUICK_EMOJIS.map(e => (
+            <button key={e} onClick={()=>setNewEmoji(e)} style={{
+              width:32,height:32,borderRadius:8,fontSize:16,cursor:"pointer",
+              background: newEmoji===e?"#7c3aed":T.surface2,
+              border:`2px solid ${newEmoji===e?"#7c3aed":T.border}`,
+            }}>{e}</button>
+          ))}
+        </div>
         <div style={{display:"flex",gap:8}}>
-          <input
-            style={{...css.input,flex:1}}
-            placeholder="Ex: Balles de tennis, Bandes élastiques…"
-            value={newLabel}
-            onChange={e=>setNewLabel(e.target.value)}
-            onKeyDown={e=>e.key==="Enter"&&addCustom()}
-          />
-          <button onClick={addCustom} style={{
-            ...css.btn,...css.btnConfirm,
-            padding:"10px 18px",flexShrink:0,fontSize:14,
-          }}>+ Ajouter</button>
+          <input style={{...css.input,flex:1}} placeholder="Nom de l'élément…" value={newLabel} onChange={e=>setNewLabel(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addItem()} />
+          <button onClick={addItem} style={{...css.btn,...css.btnConfirm,padding:"10px 18px",flexShrink:0,fontSize:14}}>+ Ajouter</button>
         </div>
         <p style={{fontSize:11,color:T.textDim,margin:"8px 0 0"}}>
-          Les éléments ajoutés sont conservés sur cet appareil. Les coches sont réinitialisées chaque jour.
+          La liste est conservée sur cet appareil. Les coches se remettent à zéro chaque jour.
         </p>
       </div>
     </div>
