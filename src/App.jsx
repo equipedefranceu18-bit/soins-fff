@@ -1993,64 +1993,95 @@ const MEMENTO_DEFAULT_ITEMS = [
 ];
 
 function MementoView({ date }) {
-  const storageKey = `memento_${date}`;
+  const checkedKey = `memento_checked_${date}`; // localStorage pour les coches (par appareil / par jour)
 
-  function loadChecked() {
-    try { const r = localStorage.getItem(storageKey); return r ? JSON.parse(r) : {}; }
-    catch { return {}; }
-  }
-  function loadAllItems() {
-    try { const r = localStorage.getItem("memento_all_items"); return r ? JSON.parse(r) : MEMENTO_DEFAULT_ITEMS; }
-    catch { return MEMENTO_DEFAULT_ITEMS; }
-  }
-
-  const [checked,  setChecked]  = useState(loadChecked);
-  const [allItems, setAllItems] = useState(loadAllItems);
-  const [newLabel, setNewLabel] = useState("");
-  const [newEmoji, setNewEmoji] = useState("📌");
-  const [editingId, setEditingId] = useState(null);   // id de l'item en cours d'édition
+  const [allItems,  setAllItems]  = useState([]);
+  const [checked,   setChecked]   = useState(() => {
+    try { const r = localStorage.getItem(checkedKey); return r ? JSON.parse(r) : {}; } catch { return {}; }
+  });
+  const [loading,   setLoading]   = useState(true);
+  const [newLabel,  setNewLabel]  = useState("");
+  const [newEmoji,  setNewEmoji]  = useState("📌");
+  const [editingId, setEditingId] = useState(null);
   const [editLabel, setEditLabel] = useState("");
   const [editEmoji, setEditEmoji] = useState("");
 
+  // ── Charger la liste depuis Supabase ──
+  async function fetchItems() {
+    setLoading(true);
+    const { data } = await supabase.from("memento_items").select("*").order("position");
+    if (data && data.length > 0) {
+      setAllItems(data);
+    } else {
+      // Première utilisation : peupler avec les items par défaut
+      const toInsert = MEMENTO_DEFAULT_ITEMS.map((x, i) => ({ id: x.id, label: x.label, emoji: x.emoji, position: i }));
+      await supabase.from("memento_items").insert(toInsert);
+      setAllItems(toInsert);
+    }
+    setLoading(false);
+  }
+  useEffect(() => { fetchItems(); }, []);
+
+  // Persister les coches en localStorage (local + par jour)
   useEffect(() => {
-    try { localStorage.setItem(storageKey, JSON.stringify(checked)); } catch {}
-  }, [checked, storageKey]);
+    try { localStorage.setItem(checkedKey, JSON.stringify(checked)); } catch {}
+  }, [checked, checkedKey]);
+  // Remettre les coches à zéro quand la date change
   useEffect(() => {
-    try { localStorage.setItem("memento_all_items", JSON.stringify(allItems)); } catch {}
-  }, [allItems]);
-  useEffect(() => { setChecked(loadChecked()); }, [date]);
+    try { const r = localStorage.getItem(checkedKey); setChecked(r ? JSON.parse(r) : {}); } catch { setChecked({}); }
+  }, [date]);
 
   function toggle(id) {
     setChecked(prev => ({ ...prev, [id]: !prev[id] }));
   }
-  function addItem() {
+
+  async function addItem() {
     if (!newLabel.trim()) return;
     const id = "item_" + Date.now();
-    setAllItems(prev => [...prev, { id, label: newLabel.trim(), emoji: newEmoji || "📌" }]);
+    const position = allItems.length;
+    const item = { id, label: newLabel.trim(), emoji: newEmoji || "📌", position };
+    await supabase.from("memento_items").insert(item);
+    setAllItems(prev => [...prev, item]);
     setNewLabel(""); setNewEmoji("📌");
   }
-  function deleteItem(id) {
+
+  async function deleteItem(id) {
+    await supabase.from("memento_items").delete().eq("id", id);
     setAllItems(prev => prev.filter(x => x.id !== id));
     setChecked(prev => { const n = {...prev}; delete n[id]; return n; });
   }
+
   function startEdit(item) {
     setEditingId(item.id); setEditLabel(item.label); setEditEmoji(item.emoji);
   }
-  function saveEdit() {
+
+  async function saveEdit() {
     if (!editLabel.trim()) return;
-    setAllItems(prev => prev.map(x => x.id === editingId
-      ? { ...x, label: editLabel.trim(), emoji: editEmoji || x.emoji }
-      : x
-    ));
+    await supabase.from("memento_items").update({ label: editLabel.trim(), emoji: editEmoji }).eq("id", editingId);
+    setAllItems(prev => prev.map(x => x.id === editingId ? { ...x, label: editLabel.trim(), emoji: editEmoji || x.emoji } : x));
     setEditingId(null);
   }
-  function resetAll()   { setChecked({}); }
-  function resetItems() { setAllItems(MEMENTO_DEFAULT_ITEMS); setChecked({}); }
+
+  function resetAll() { setChecked({}); }
+
+  async function resetItems() {
+    await supabase.from("memento_items").delete().neq("id", "___never___");
+    const toInsert = MEMENTO_DEFAULT_ITEMS.map((x, i) => ({ id: x.id, label: x.label, emoji: x.emoji, position: i }));
+    await supabase.from("memento_items").insert(toInsert);
+    setAllItems(toInsert);
+    setChecked({});
+  }
 
   const doneCount = allItems.filter(x => checked[x.id]).length;
   const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
 
   const QUICK_EMOJIS = ["🧊","❄️","🌡️","🏊","💧","🩹","🛏️","🪗","🧘","🫙","🥤","🧦","📌","✅","⚡","🎯","💊","🏋️","🧴","🩺","🔧","📦"];
+
+  if (loading) return (
+    <div style={{padding:"40px 20px",textAlign:"center",color:"#7c3aed",fontSize:14,fontWeight:600}}>
+      ⏳ Chargement du mémento…
+    </div>
+  );
 
   return (
     <div style={{padding:"0 20px 60px"}}>
@@ -2066,7 +2097,7 @@ function MementoView({ date }) {
               🔄 Tout décocher
             </button>
           )}
-          <button onClick={()=>{ if(window.confirm("Remettre la liste par défaut ?")) resetItems(); }} style={{padding:"6px 12px",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",background:T.surface2,border:`1px solid ${T.border}`,color:T.textDim}}>
+          <button onClick={async ()=>{ if(window.confirm("Remettre la liste par défaut ?")) await resetItems(); }} style={{padding:"6px 12px",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",background:T.surface2,border:`1px solid ${T.border}`,color:T.textDim}}>
             ↺ Réinitialiser
           </button>
         </div>
@@ -2153,7 +2184,7 @@ function MementoView({ date }) {
           <button onClick={addItem} style={{...css.btn,...css.btnConfirm,padding:"10px 18px",flexShrink:0,fontSize:14}}>+ Ajouter</button>
         </div>
         <p style={{fontSize:11,color:T.textDim,margin:"8px 0 0"}}>
-          La liste est conservée sur cet appareil. Les coches se remettent à zéro chaque jour.
+          La liste est partagée entre tous les appareils. Les coches se remettent à zéro chaque jour.
         </p>
       </div>
     </div>
