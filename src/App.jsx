@@ -1746,6 +1746,14 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
             ❄️ Cryo
           </button>
         )}
+        <button style={{
+          ...css.staffActBtn,
+          background: dvSubMode==="memento" ? "#7c3aed" : "#f5f0ff",
+          border: dvSubMode==="memento" ? "2px solid #7c3aed" : `1px solid #c4b5fd`,
+          color: dvSubMode==="memento" ? "#fff" : "#7c3aed", fontWeight:800,
+        }} onClick={()=>{ setDvSubMode(dvSubMode==="memento"?"slots":"memento"); setStaffTarget(null); }}>
+          📋 Mémento
+        </button>
         <button style={{...css.staffActBtn, background:"#f0f4ff", border:`1px solid ${T.navy}44`, color:T.navy}}
           onClick={()=>setShowStats(true)}>
           📊 Stats
@@ -1824,6 +1832,11 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
         />
       )}
 
+      {/* ── MEMENTO MODE ── */}
+      {dvSubMode === "memento" && (
+        <MementoView date={dvDate} />
+      )}
+
       {/* ── PLANNING MODE ── */}
       {dvSubMode === "planning" && (
         <PlanningEditor
@@ -1838,7 +1851,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
       )}
 
       {/* ── CALENDAR MODES ── */}
-      {dvSubMode !== "history" && dvSubMode !== "planning" && dvSubMode !== "cryo" && (
+      {dvSubMode !== "history" && dvSubMode !== "planning" && dvSubMode !== "cryo" && dvSubMode !== "memento" && (
         <>
           {/* Menu contextuel assignation */}
           {contextMenu && (
@@ -1963,6 +1976,180 @@ const BLOCK_PRESETS = [
   { label: "📋 Réunion",       color: "#b00020" },
 ];
 
+// ─── Mémento ─────────────────────────────────────────────────────────────────
+const MEMENTO_DEFAULT_ITEMS = [
+  { id:"glace",    label:"Vessies de glace",      emoji:"🧊" },
+  { id:"glac_fr",  label:"Glacière fraîche",       emoji:"❄️" },
+  { id:"glac_tp",  label:"Glacière tempérée",      emoji:"🌡️" },
+  { id:"serviettes",label:"Serviettes",            emoji:"🏊" },
+  { id:"gel",      label:"Gel échographe",         emoji:"💧" },
+  { id:"sparadrap",label:"Sparadrap / strapping",  emoji:"🩹" },
+  { id:"table",    label:"Tables de massage",      emoji:"🛏️" },
+  { id:"oreillers",label:"Oreillers / rouleaux",   emoji:"🪗" },
+  { id:"matelas",  label:"Matelas de sol",         emoji:"🧘" },
+  { id:"huile",    label:"Huile de massage",       emoji:"🫙" },
+  { id:"boisson",  label:"Boissons récupération",  emoji:"🥤" },
+  { id:"chaussettes",label:"Chaussettes de compression", emoji:"🧦" },
+];
+
+function MementoView({ date }) {
+  const storageKey = `memento_${date}`;
+
+  // Charger l'état coché depuis localStorage
+  function loadChecked() {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  }
+  function loadCustomItems() {
+    try {
+      const raw = localStorage.getItem("memento_custom_items");
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }
+
+  const [checked, setChecked] = useState(loadChecked);
+  const [customItems, setCustomItems] = useState(loadCustomItems);
+  const [newLabel, setNewLabel] = useState("");
+
+  // Persister à chaque changement
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(checked)); } catch {}
+  }, [checked, storageKey]);
+  useEffect(() => {
+    try { localStorage.setItem("memento_custom_items", JSON.stringify(customItems)); } catch {}
+  }, [customItems]);
+
+  // Recharger quand la date change
+  useEffect(() => {
+    setChecked(loadChecked());
+  }, [date]);
+
+  function toggle(id) {
+    setChecked(prev => ({ ...prev, [id]: !prev[id] }));
+  }
+  function addCustom() {
+    if (!newLabel.trim()) return;
+    const id = "custom_" + Date.now();
+    setCustomItems(prev => [...prev, { id, label: newLabel.trim(), emoji: "📌" }]);
+    setNewLabel("");
+  }
+  function removeCustom(id) {
+    setCustomItems(prev => prev.filter(x => x.id !== id));
+    setChecked(prev => { const n = {...prev}; delete n[id]; return n; });
+  }
+  function resetAll() {
+    setChecked({});
+  }
+
+  const allItems = [...MEMENTO_DEFAULT_ITEMS, ...customItems];
+  const doneCount = allItems.filter(x => checked[x.id]).length;
+  const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+
+  return (
+    <div style={{padding:"0 20px 60px"}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+        <div>
+          <div style={{fontSize:14,fontWeight:800,color:"#7c3aed",marginBottom:2}}>📋 Mémento — {dateLabel}</div>
+          <div style={{fontSize:12,color:T.textDim}}>
+            {doneCount}/{allItems.length} éléments cochés
+          </div>
+        </div>
+        {doneCount > 0 && (
+          <button onClick={resetAll} style={{
+            padding:"6px 14px",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",
+            background:"#fff0f0",border:`1px solid ${T.red}44`,color:T.red,
+          }}>
+            🔄 Tout décocher
+          </button>
+        )}
+      </div>
+
+      {/* Barre de progression */}
+      <div style={{height:8,background:T.surface3,borderRadius:4,overflow:"hidden",marginBottom:20}}>
+        <div style={{
+          height:"100%",borderRadius:4,
+          background:"linear-gradient(90deg,#7c3aed,#a855f7)",
+          width:`${allItems.length ? Math.round(doneCount/allItems.length*100) : 0}%`,
+          transition:"width 0.3s",
+        }} />
+      </div>
+
+      {/* Liste des items */}
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24}}>
+        {allItems.map(item => {
+          const done = !!checked[item.id];
+          const isCustom = item.id.startsWith("custom_");
+          return (
+            <div key={item.id} onClick={()=>toggle(item.id)} style={{
+              display:"flex",alignItems:"center",gap:14,
+              padding:"14px 16px",borderRadius:14,cursor:"pointer",
+              background: done ? "#f0fdf4" : T.surface,
+              border: `2px solid ${done ? "#86efac" : T.border}`,
+              boxShadow: done ? "none" : "0 1px 4px rgba(0,35,149,0.06)",
+              transition:"all 0.2s",
+              opacity: done ? 0.75 : 1,
+            }}>
+              {/* Checkbox */}
+              <div style={{
+                width:26,height:26,borderRadius:8,flexShrink:0,
+                background: done ? "#16a34a" : T.surface2,
+                border: `2px solid ${done ? "#16a34a" : T.border}`,
+                display:"flex",alignItems:"center",justifyContent:"center",
+                transition:"all 0.2s",
+              }}>
+                {done && <span style={{color:"#fff",fontSize:14,fontWeight:900}}>✓</span>}
+              </div>
+              {/* Emoji + label */}
+              <span style={{fontSize:20,flexShrink:0}}>{item.emoji}</span>
+              <span style={{
+                flex:1,fontSize:15,fontWeight:600,
+                color: done ? "#16a34a" : T.text,
+                textDecoration: done ? "line-through" : "none",
+                transition:"all 0.2s",
+              }}>{item.label}</span>
+              {/* Supprimer custom */}
+              {isCustom && (
+                <button onClick={e=>{e.stopPropagation();removeCustom(item.id);}} style={{
+                  background:"none",border:"none",cursor:"pointer",
+                  color:T.textDim,fontSize:16,padding:"0 4px",flexShrink:0,
+                }}>✕</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Ajouter un élément custom */}
+      <div style={{
+        background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,
+        padding:16,boxShadow:"0 1px 4px rgba(0,35,149,0.06)",
+      }}>
+        <div style={{...css.label,marginBottom:10}}>Ajouter un élément</div>
+        <div style={{display:"flex",gap:8}}>
+          <input
+            style={{...css.input,flex:1}}
+            placeholder="Ex: Balles de tennis, Bandes élastiques…"
+            value={newLabel}
+            onChange={e=>setNewLabel(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&addCustom()}
+          />
+          <button onClick={addCustom} style={{
+            ...css.btn,...css.btnConfirm,
+            padding:"10px 18px",flexShrink:0,fontSize:14,
+          }}>+ Ajouter</button>
+        </div>
+        <p style={{fontSize:11,color:T.textDim,margin:"8px 0 0"}}>
+          Les éléments ajoutés sont conservés sur cet appareil. Les coches sont réinitialisées chaque jour.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Planning Editor (staff) ─────────────────────────────────────────────────
 function PlanningEditor({ date, scheduleBlocks, addScheduleBlock, deleteScheduleBlock }) {
   const [label, setLabel]       = useState(BLOCK_PRESETS[0].label);
   const [color, setColor]       = useState(BLOCK_PRESETS[0].color);
@@ -2043,15 +2230,7 @@ function PlanningEditor({ date, scheduleBlocks, addScheduleBlock, deleteSchedule
         <div style={{display:"flex", gap:10, alignItems:"flex-end", flexWrap:"wrap"}}>
           <div style={{flex:1, minWidth:100}}>
             <div style={{...css.label, marginBottom:4}}>De</div>
-            <input type="time" style={css.input} value={timeStart} onChange={e=>{
-              const val = e.target.value;
-              setTimeStart(val);
-              if (val) {
-                const [h, m] = val.split(":").map(Number);
-                const endH = (h + 1) % 24;
-                setTimeEnd(`${String(endH).padStart(2,"0")}:${String(m).padStart(2,"0")}`);
-              }
-            }} />
+            <input type="time" style={css.input} value={timeStart} onChange={e=>{ const val=e.target.value; setTimeStart(val); if(val){const [h,m]=val.split(":").map(Number);const endH=(h+1)%24;setTimeEnd(`${String(endH).padStart(2,"00")}:${String(m).padStart(2,"00")}`);} }} />
           </div>
           <div style={{flex:1, minWidth:100}}>
             <div style={{...css.label, marginBottom:4}}>À</div>
