@@ -181,7 +181,14 @@ export default function App() {
       setOpen(om); setClosed(cm); setRecurring(rm); setSplitSlots(sm); setBookings(bm); setStrapSlots(stm); setBookingHistory(allHistory);
       setCryoSlots(cym);
       setScheduleBlocks(sb.data||[]);
-      setMementoItems(memo.data||[]);
+      // Peuplement automatique si table vide
+      if (!memo.data || memo.data.length === 0) {
+        const toInsert = MEMENTO_DEFAULT_ITEMS.map((x, i) => ({ id: x.id, label: x.label, emoji: x.emoji, position: i, checked: false }));
+        await supabase.from("memento_items").insert(toInsert);
+        setMementoItems(toInsert);
+      } else {
+        setMementoItems(memo.data);
+      }
       setDbReady(true);
     } catch(e) { console.warn("Supabase:",e.message); setDbReady(true); }
   }, []);
@@ -2003,16 +2010,6 @@ function MementoView({ date, mementoItems, setMementoItems }) {
   const [editingId, setEditingId] = useState(null);
   const [editLabel, setEditLabel] = useState("");
   const [editEmoji, setEditEmoji] = useState("");
-
-  // Première utilisation : peupler Supabase si vide
-  useEffect(() => {
-    if (mementoItems.length === 0) {
-      const toInsert = MEMENTO_DEFAULT_ITEMS.map((x, i) => ({ id: x.id, label: x.label, emoji: x.emoji, position: i, checked: false }));
-      supabase.from("memento_items").insert(toInsert).then(() => {
-        setMementoItems(toInsert);
-      });
-    }
-  }, []);
 
   async function toggle(id) {
     const item = mementoItems.find(x => x.id === id);
