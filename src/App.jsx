@@ -47,6 +47,22 @@ const T = {
 };
  // Orange unique straps
 const STRAP_ID = "strap";    // pract_id virtuel en Supabase
+
+// ─── Mémento items par défaut ─────────────────────────────────────────────────
+const MEMENTO_DEFAULT_ITEMS = [
+  { id:"glace",      label:"Vessies de glace",             emoji:"🧊" },
+  { id:"glac_fr",    label:"Glacière fraîche",              emoji:"❄️" },
+  { id:"glac_tp",    label:"Glacière tempérée",             emoji:"🌡️" },
+  { id:"serviettes", label:"Serviettes",                    emoji:"🏊" },
+  { id:"gel",        label:"Gel échographe",                emoji:"💧" },
+  { id:"sparadrap",  label:"Sparadrap / strapping",         emoji:"🩹" },
+  { id:"table",      label:"Tables de massage",             emoji:"🛏️" },
+  { id:"oreillers",  label:"Oreillers / rouleaux",          emoji:"🪗" },
+  { id:"matelas",    label:"Matelas de sol",                emoji:"🧘" },
+  { id:"huile",      label:"Huile de massage",              emoji:"🫙" },
+  { id:"boisson",    label:"Boissons récupération",         emoji:"🥤" },
+  { id:"chaussettes",label:"Chaussettes de compression",    emoji:"🧦" },
+];
 const BOOKING_ADVANCE_HOURS = 24;
 const CASCADE_AFTER_HOUR = 21; // slots from this hour onward require previous to be booked first
 
@@ -1988,21 +2004,6 @@ const BLOCK_PRESETS = [
   { label: "📋 Réunion",       color: "#b00020" },
 ];
 
-// ─── Mémento ─────────────────────────────────────────────────────────────────
-const MEMENTO_DEFAULT_ITEMS = [
-  { id:"glace",      label:"Vessies de glace",             emoji:"🧊" },
-  { id:"glac_fr",    label:"Glacière fraîche",              emoji:"❄️" },
-  { id:"glac_tp",    label:"Glacière tempérée",             emoji:"🌡️" },
-  { id:"serviettes", label:"Serviettes",                    emoji:"🏊" },
-  { id:"gel",        label:"Gel échographe",                emoji:"💧" },
-  { id:"sparadrap",  label:"Sparadrap / strapping",         emoji:"🩹" },
-  { id:"table",      label:"Tables de massage",             emoji:"🛏️" },
-  { id:"oreillers",  label:"Oreillers / rouleaux",          emoji:"🪗" },
-  { id:"matelas",    label:"Matelas de sol",                emoji:"🧘" },
-  { id:"huile",      label:"Huile de massage",              emoji:"🫙" },
-  { id:"boisson",    label:"Boissons récupération",         emoji:"🥤" },
-  { id:"chaussettes",label:"Chaussettes de compression",    emoji:"🧦" },
-];
 
 function MementoView({ date, mementoItems, setMementoItems }) {
   const [newLabel,  setNewLabel]  = useState("");
