@@ -135,6 +135,7 @@ export default function App() {
   const [cryoSlots, setCryoSlots] = useState({}); // { "date|time": true }
   const [scheduleBlocks, setScheduleBlocks] = useState([]); // [{id, date, time_start, time_end, label, color}]
   const [bookingHistory, setBookingHistory] = useState([]); // toutes les lignes brutes (y compris annulées)
+  const [mementoItems, setMementoItems] = useState([]);
   const [dbReady,    setDbReady]    = useState(false);
 
   const loadAll = useCallback(async () => {
@@ -175,10 +176,12 @@ export default function App() {
       });
       const sb = await supabase.from("schedule_blocks").select("*");
       const cryo = await supabase.from("cryo_slots").select("*");
+      const memo = await supabase.from("memento_items").select("*").order("position");
       const cym={}; (cryo.data||[]).forEach(x=>{ cym[`${x.col_id}|${x.date}|${x.time}`]={player:x.player||"",locked:x.locked||false,t_cut_in:x.t_cut_in??null,t_cut_out:x.t_cut_out??null,t_in:x.t_in??null,t_out:x.t_out??null,duration_cryo:x.duration_cryo??null,duration_return:x.duration_return??null}; });
       setOpen(om); setClosed(cm); setRecurring(rm); setSplitSlots(sm); setBookings(bm); setStrapSlots(stm); setBookingHistory(allHistory);
       setCryoSlots(cym);
       setScheduleBlocks(sb.data||[]);
+      setMementoItems(memo.data||[]);
       setDbReady(true);
     } catch(e) { console.warn("Supabase:",e.message); setDbReady(true); }
   }, []);
@@ -199,6 +202,7 @@ export default function App() {
       .on("postgres_changes",{event:"*",schema:"public",table:"split_slots"},loadAll)
       .on("postgres_changes",{event:"*",schema:"public",table:"bookings"},loadAll)
       .on("postgres_changes",{event:"*",schema:"public",table:"cryo_slots"},loadAll)
+      .on("postgres_changes",{event:"*",schema:"public",table:"memento_items"},loadAll)
       .subscribe();
     return () => supabase.removeChannel(ch);
   }, [loadAll]);
@@ -631,6 +635,7 @@ export default function App() {
           strapSlots={strapSlots} toggleStrap={toggleStrap} bookStrap={bookStrap} setStrapCount={setStrapCount}
           cryoSlots={cryoSlots} setCryoSlots={setCryoSlots} loadAll={loadAll}
           scheduleBlocks={scheduleBlocks} addScheduleBlock={addScheduleBlock} deleteScheduleBlock={deleteScheduleBlock}
+          mementoItems={mementoItems} setMementoItems={setMementoItems}
           PLAYERS={PLAYERS} setView={setView} setAvatarModal={setAvatarModal}
         />
       )}
@@ -1575,7 +1580,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
   staffPlayerName, setStaffPlayerName,
   getSlotsForContext, isSplit, toggleSplit, BASE_SLOTS, isHalfSlot,
   getPastBookings, getSlotDuration, bookings, bookingHistory, strapSlots, toggleStrap, bookStrap, setStrapCount, cryoSlots, setCryoSlots,
-  scheduleBlocks, addScheduleBlock, deleteScheduleBlock, PLAYERS, setView, setAvatarModal }) {
+  scheduleBlocks, addScheduleBlock, deleteScheduleBlock, mementoItems, setMementoItems, PLAYERS, setView, setAvatarModal }) {
 
   const [dvSubMode, setDvSubMode] = useState("addPlayer");
   const [staffDefaultDuration, setStaffDefaultDuration] = useState(60);
@@ -1834,7 +1839,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
 
       {/* ── MEMENTO MODE ── */}
       {dvSubMode === "memento" && (
-        <MementoView date={dvDate} />
+        <MementoView date={dvDate} mementoItems={mementoItems} setMementoItems={setMementoItems} />
       )}
 
       {/* ── PLANNING MODE ── */}
@@ -1992,63 +1997,44 @@ const MEMENTO_DEFAULT_ITEMS = [
   { id:"chaussettes",label:"Chaussettes de compression",    emoji:"🧦" },
 ];
 
-function MementoView({ date }) {
-  const checkedKey = `memento_checked_${date}`; // localStorage pour les coches (par appareil / par jour)
-
-  const [allItems,  setAllItems]  = useState([]);
-  const [checked,   setChecked]   = useState(() => {
-    try { const r = localStorage.getItem(checkedKey); return r ? JSON.parse(r) : {}; } catch { return {}; }
-  });
-  const [loading,   setLoading]   = useState(true);
+function MementoView({ date, mementoItems, setMementoItems }) {
   const [newLabel,  setNewLabel]  = useState("");
   const [newEmoji,  setNewEmoji]  = useState("📌");
   const [editingId, setEditingId] = useState(null);
   const [editLabel, setEditLabel] = useState("");
   const [editEmoji, setEditEmoji] = useState("");
 
-  // ── Charger la liste depuis Supabase ──
-  async function fetchItems() {
-    setLoading(true);
-    const { data } = await supabase.from("memento_items").select("*").order("position");
-    if (data && data.length > 0) {
-      setAllItems(data);
-    } else {
-      // Première utilisation : peupler avec les items par défaut
-      const toInsert = MEMENTO_DEFAULT_ITEMS.map((x, i) => ({ id: x.id, label: x.label, emoji: x.emoji, position: i }));
-      await supabase.from("memento_items").insert(toInsert);
-      setAllItems(toInsert);
+  // Première utilisation : peupler Supabase si vide
+  useEffect(() => {
+    if (mementoItems.length === 0) {
+      const toInsert = MEMENTO_DEFAULT_ITEMS.map((x, i) => ({ id: x.id, label: x.label, emoji: x.emoji, position: i, checked: false }));
+      supabase.from("memento_items").insert(toInsert).then(() => {
+        setMementoItems(toInsert);
+      });
     }
-    setLoading(false);
-  }
-  useEffect(() => { fetchItems(); }, []);
+  }, []);
 
-  // Persister les coches en localStorage (local + par jour)
-  useEffect(() => {
-    try { localStorage.setItem(checkedKey, JSON.stringify(checked)); } catch {}
-  }, [checked, checkedKey]);
-  // Remettre les coches à zéro quand la date change
-  useEffect(() => {
-    try { const r = localStorage.getItem(checkedKey); setChecked(r ? JSON.parse(r) : {}); } catch { setChecked({}); }
-  }, [date]);
-
-  function toggle(id) {
-    setChecked(prev => ({ ...prev, [id]: !prev[id] }));
+  async function toggle(id) {
+    const item = mementoItems.find(x => x.id === id);
+    if (!item) return;
+    const newVal = !item.checked;
+    setMementoItems(prev => prev.map(x => x.id === id ? { ...x, checked: newVal } : x));
+    await supabase.from("memento_items").update({ checked: newVal }).eq("id", id);
   }
 
   async function addItem() {
     if (!newLabel.trim()) return;
     const id = "item_" + Date.now();
-    const position = allItems.length;
-    const item = { id, label: newLabel.trim(), emoji: newEmoji || "📌", position };
+    const position = mementoItems.length;
+    const item = { id, label: newLabel.trim(), emoji: newEmoji || "📌", position, checked: false };
     await supabase.from("memento_items").insert(item);
-    setAllItems(prev => [...prev, item]);
+    setMementoItems(prev => [...prev, item]);
     setNewLabel(""); setNewEmoji("📌");
   }
 
   async function deleteItem(id) {
     await supabase.from("memento_items").delete().eq("id", id);
-    setAllItems(prev => prev.filter(x => x.id !== id));
-    setChecked(prev => { const n = {...prev}; delete n[id]; return n; });
+    setMementoItems(prev => prev.filter(x => x.id !== id));
   }
 
   function startEdit(item) {
@@ -2058,30 +2044,26 @@ function MementoView({ date }) {
   async function saveEdit() {
     if (!editLabel.trim()) return;
     await supabase.from("memento_items").update({ label: editLabel.trim(), emoji: editEmoji }).eq("id", editingId);
-    setAllItems(prev => prev.map(x => x.id === editingId ? { ...x, label: editLabel.trim(), emoji: editEmoji || x.emoji } : x));
+    setMementoItems(prev => prev.map(x => x.id === editingId ? { ...x, label: editLabel.trim(), emoji: editEmoji || x.emoji } : x));
     setEditingId(null);
   }
 
-  function resetAll() { setChecked({}); }
+  async function resetAll() {
+    await supabase.from("memento_items").update({ checked: false }).neq("id", "___never___");
+    setMementoItems(prev => prev.map(x => ({ ...x, checked: false })));
+  }
 
   async function resetItems() {
     await supabase.from("memento_items").delete().neq("id", "___never___");
-    const toInsert = MEMENTO_DEFAULT_ITEMS.map((x, i) => ({ id: x.id, label: x.label, emoji: x.emoji, position: i }));
+    const toInsert = MEMENTO_DEFAULT_ITEMS.map((x, i) => ({ id: x.id, label: x.label, emoji: x.emoji, position: i, checked: false }));
     await supabase.from("memento_items").insert(toInsert);
-    setAllItems(toInsert);
-    setChecked({});
+    setMementoItems(toInsert);
   }
 
-  const doneCount = allItems.filter(x => checked[x.id]).length;
+  const doneCount = mementoItems.filter(x => x.checked).length;
   const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
 
   const QUICK_EMOJIS = ["🧊","❄️","🌡️","🏊","💧","🩹","🛏️","🪗","🧘","🫙","🥤","🧦","📌","✅","⚡","🎯","💊","🏋️","🧴","🩺","🔧","📦"];
-
-  if (loading) return (
-    <div style={{padding:"40px 20px",textAlign:"center",color:"#7c3aed",fontSize:14,fontWeight:600}}>
-      ⏳ Chargement du mémento…
-    </div>
-  );
 
   return (
     <div style={{padding:"0 20px 60px"}}>
@@ -2089,7 +2071,7 @@ function MementoView({ date }) {
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
         <div>
           <div style={{fontSize:14,fontWeight:800,color:"#7c3aed",marginBottom:2}}>📋 Mémento — {dateLabel}</div>
-          <div style={{fontSize:12,color:T.textDim}}>{doneCount}/{allItems.length} éléments cochés</div>
+          <div style={{fontSize:12,color:T.textDim}}>{doneCount}/{mementoItems.length} éléments cochés</div>
         </div>
         <div style={{display:"flex",gap:6}}>
           {doneCount > 0 && (
@@ -2105,13 +2087,13 @@ function MementoView({ date }) {
 
       {/* Barre de progression */}
       <div style={{height:8,background:T.surface3,borderRadius:4,overflow:"hidden",marginBottom:20}}>
-        <div style={{height:"100%",borderRadius:4,background:"linear-gradient(90deg,#7c3aed,#a855f7)",width:`${allItems.length?Math.round(doneCount/allItems.length*100):0}%`,transition:"width 0.3s"}} />
+        <div style={{height:"100%",borderRadius:4,background:"linear-gradient(90deg,#7c3aed,#a855f7)",width:`${mementoItems.length?Math.round(doneCount/mementoItems.length*100):0}%`,transition:"width 0.3s"}} />
       </div>
 
       {/* Liste */}
       <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:24}}>
-        {allItems.map(item => {
-          const done = !!checked[item.id];
+        {mementoItems.map(item => {
+          const done = !!item.checked;
           const isEditing = editingId === item.id;
 
           if (isEditing) {
