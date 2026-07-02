@@ -3594,25 +3594,7 @@ function StatsModal({ onClose, bookings, practitioners, bookingHistory, strapSlo
             </div>
           );
         })()}
-      {/* Avatar modal */}
-      {avatarModal && (
-        <div onClick={() => setAvatarModal(null)} style={{
-          position:"fixed", inset:0, zIndex:9999,
-          background:"rgba(0,0,0,0.85)",
-          display:"flex", alignItems:"center", justifyContent:"center",
-          cursor:"pointer",
-        }}>
-          <img src={avatarModal.avatar} alt={avatarModal.name}
-            style={{maxHeight:"92vh", maxWidth:"92vw", borderRadius:16, boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}
-            onClick={e => e.stopPropagation()}
-          />
-          <button onClick={() => setAvatarModal(null)} style={{
-            position:"absolute", top:20, right:24,
-            background:"none", border:"none", color:"#fff",
-            fontSize:32, cursor:"pointer", lineHeight:1,
-          }}>✕</button>
-        </div>
-      )}
+
       </div>
     </div>
   );
