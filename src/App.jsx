@@ -143,18 +143,19 @@ function PodiumView({ bookingHistory, strapSlots, cryoSlots }) {
         {ranking.length >= 1 && (
           <div style={{display:"flex", alignItems:"flex-end", justifyContent:"center", gap:12, marginBottom:28, padding:"0 8px"}}>
             {/* Ordre : 2e, 1er, 3e */}
-            {[1, 0, 2].map(pos => {
+            {[1, 0, 2].map((pos, displayIdx) => {
               const entry = ranking[pos];
               if (!entry) return <div key={pos} style={{flex:1}} />;
               const [name, vals] = entry;
               const val = vals[activeTab];
-              const heights = [120, 160, 90];
+              // hauteurs visuelles : gauche(2e)=120, centre(1er)=160, droite(3e)=90
+              const heightsByDisplay = [120, 160, 90];
               return (
                 <div key={pos} style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:6}}>
                   <div style={{fontSize:20}}>{MEDALS[pos]}</div>
                   <div style={{
                     width:"100%", borderRadius:"12px 12px 0 0",
-                    height:heights[pos],
+                    height:heightsByDisplay[displayIdx],
                     background:`linear-gradient(180deg, ${cat.color}cc, ${cat.color})`,
                     display:"flex", flexDirection:"column", alignItems:"center",
                     justifyContent:"flex-start", paddingTop:12,
