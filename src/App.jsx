@@ -48,6 +48,173 @@ const T = {
  // Orange unique straps
 const STRAP_ID = "strap";    // pract_id virtuel en Supabase
 
+// ─── Podium ───────────────────────────────────────────────────────────────────
+function PodiumView({ bookingHistory, strapSlots, cryoSlots }) {
+  const START = "2026-05-28";
+
+  // ── Calcul des compteurs ──
+  const counts = {};
+  function ensure(p) {
+    if (!counts[p]) counts[p] = { h60: 0, h30: 0, strap: 0, cryo: 0 };
+  }
+
+  // Soins 1h et 30'
+  (bookingHistory || []).forEach(b => {
+    if (b.cancelled || !b.player || b.date < START) return;
+    ensure(b.player);
+    if ((b.duration || 60) === 30) counts[b.player].h30++;
+    else counts[b.player].h60++;
+  });
+
+  // Straps
+  Object.entries(strapSlots || {}).forEach(([k, v]) => {
+    if (!v.player) return;
+    const date = k.split("|")[1];
+    if (date < START) return;
+    ensure(v.player);
+    counts[v.player].strap += (v.strap_count || 1);
+  });
+
+  // Cryo
+  Object.entries(cryoSlots || {}).forEach(([k, v]) => {
+    if (!v.player) return;
+    const date = k.split("|")[1];
+    if (date < START) return;
+    ensure(v.player);
+    counts[v.player].cryo++;
+  });
+
+  const CATEGORIES = [
+    { key: "h60",   label: "Soins 1h",   emoji: "🛏️",  color: T.navy,       bg: "#e8edf8" },
+    { key: "h30",   label: "Soins 30'",  emoji: "⚡",   color: "#e05090",    bg: "#fce8f3" },
+    { key: "strap", label: "Straps",     emoji: "🩹",  color: "#ff7043",    bg: "#fff3ef" },
+    { key: "cryo",  label: "Cryo",       emoji: "❄️",  color: "#0288d1",    bg: "#e1f5fe" },
+  ];
+
+  // Top 3 médailles
+  const MEDALS = ["🥇", "🥈", "🥉"];
+  const MEDAL_BG = ["#fef9c3", "#f1f5f9", "#fef3c7"];
+  const MEDAL_BORDER = ["#f59e0b", "#94a3b8", "#d97706"];
+  const MEDAL_SIZE = [56, 46, 40];
+
+  function getRanking(key) {
+    return Object.entries(counts)
+      .filter(([, v]) => v[key] > 0)
+      .sort((a, b) => b[1][key] - a[1][key])
+      .slice(0, 10);
+  }
+
+  const [activeTab, setActiveTab] = useState("h60");
+  const cat = CATEGORIES.find(c => c.key === activeTab);
+  const ranking = getRanking(activeTab);
+  const max = ranking.length > 0 ? ranking[0][1][activeTab] : 1;
+
+  return (
+    <div style={{padding:"0 20px 60px"}}>
+      {/* Titre */}
+      <div style={{textAlign:"center", padding:"12px 0 20px"}}>
+        <div style={{fontSize:32}}>🏆</div>
+        <div style={{fontSize:18, fontWeight:800, color:T.navy}}>Classement des joueurs</div>
+        <div style={{fontSize:12, color:T.textDim}}>depuis le 28 mai 2026</div>
+      </div>
+
+      {/* Onglets catégories */}
+      <div style={{display:"flex", gap:8, marginBottom:24, flexWrap:"wrap"}}>
+        {CATEGORIES.map(c => (
+          <button key={c.key} onClick={()=>setActiveTab(c.key)} style={{
+            flex:1, minWidth:80, padding:"10px 8px", borderRadius:12, fontSize:13,
+            fontWeight:700, cursor:"pointer", textAlign:"center",
+            background: activeTab===c.key ? c.color : c.bg,
+            border: `2px solid ${activeTab===c.key ? c.color : c.color+"44"}`,
+            color: activeTab===c.key ? "#fff" : c.color,
+            transition:"all 0.15s",
+            boxShadow: activeTab===c.key ? `0 4px 12px ${c.color}44` : "none",
+          }}>
+            <div style={{fontSize:18}}>{c.emoji}</div>
+            <div>{c.label}</div>
+          </button>
+        ))}
+      </div>
+
+      {ranking.length === 0 ? (
+        <div style={css.emptyHint}>Aucune donnée pour cette catégorie.</div>
+      ) : (<>
+        {/* Podium top 3 */}
+        {ranking.length >= 1 && (
+          <div style={{display:"flex", alignItems:"flex-end", justifyContent:"center", gap:12, marginBottom:28, padding:"0 8px"}}>
+            {/* Ordre : 2e, 1er, 3e */}
+            {[1, 0, 2].map(pos => {
+              const entry = ranking[pos];
+              if (!entry) return <div key={pos} style={{flex:1}} />;
+              const [name, vals] = entry;
+              const val = vals[activeTab];
+              const heights = [120, 160, 90];
+              return (
+                <div key={pos} style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:6}}>
+                  <div style={{fontSize:20}}>{MEDALS[pos]}</div>
+                  <div style={{
+                    width:"100%", borderRadius:"12px 12px 0 0",
+                    height:heights[pos],
+                    background:`linear-gradient(180deg, ${cat.color}cc, ${cat.color})`,
+                    display:"flex", flexDirection:"column", alignItems:"center",
+                    justifyContent:"flex-start", paddingTop:12,
+                    boxShadow:`0 4px 16px ${cat.color}44`,
+                  }}>
+                    <div style={{
+                      width:MEDAL_SIZE[pos], height:MEDAL_SIZE[pos], borderRadius:"50%",
+                      background:MEDAL_BG[pos], border:`3px solid ${MEDAL_BORDER[pos]}`,
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      fontSize:pos===0?13:11, fontWeight:800, color:T.navy,
+                      textAlign:"center", padding:2, lineHeight:1.2,
+                      boxShadow:`0 2px 8px rgba(0,0,0,0.15)`,
+                    }}>{name.split(" ")[0]}</div>
+                    <div style={{color:"#fff", fontWeight:800, fontSize:pos===0?20:17, marginTop:8}}>{val}</div>
+                    <div style={{color:"rgba(255,255,255,0.8)", fontSize:10, fontWeight:600}}>{cat.emoji}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Liste complète */}
+        <div style={{display:"flex", flexDirection:"column", gap:8}}>
+          {ranking.map(([name, vals], idx) => {
+            const val = vals[activeTab];
+            const pct = Math.round(val / max * 100);
+            const medal = idx < 3 ? MEDALS[idx] : `${idx+1}.`;
+            return (
+              <div key={name} style={{
+                display:"flex", alignItems:"center", gap:12,
+                padding:"10px 14px", borderRadius:12,
+                background: idx < 3 ? MEDAL_BG[idx] : T.surface,
+                border:`2px solid ${idx < 3 ? MEDAL_BORDER[idx]+"66" : T.border}`,
+                boxShadow: idx===0 ? `0 2px 12px ${cat.color}22` : "none",
+              }}>
+                <div style={{width:28, textAlign:"center", fontSize:idx<3?18:13, fontWeight:800, color:idx<3?MEDAL_BORDER[idx]:T.textDim, flexShrink:0}}>
+                  {medal}
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700, fontSize:14, color:T.text, marginBottom:4}}>{name}</div>
+                  <div style={{height:8, background:T.surface3, borderRadius:4, overflow:"hidden"}}>
+                    <div style={{width:`${pct}%`, height:"100%", background:cat.color, borderRadius:4, transition:"width 0.4s"}} />
+                  </div>
+                </div>
+                <div style={{
+                  minWidth:40, textAlign:"right", fontWeight:800, fontSize:16,
+                  color: idx===0 ? cat.color : T.navy,
+                }}>
+                  {val} <span style={{fontSize:11, fontWeight:600, color:T.textDim}}>{cat.emoji}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </>)}
+    </div>
+  );
+}
+
 // ─── Mémento items par défaut ─────────────────────────────────────────────────
 const MEMENTO_DEFAULT_ITEMS = [
   { id:"glace",      label:"Vessies de glace",             emoji:"🧊" },
@@ -1782,6 +1949,14 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
         }} onClick={()=>{ setDvSubMode(dvSubMode==="memento"?"slots":"memento"); setStaffTarget(null); }}>
           📋 Mémento
         </button>
+        <button style={{
+          ...css.staffActBtn,
+          background: dvSubMode==="podium" ? "#f59e0b" : "#fffbeb",
+          border: dvSubMode==="podium" ? "2px solid #f59e0b" : "1px solid #fcd34d",
+          color: dvSubMode==="podium" ? "#fff" : "#92400e", fontWeight:800,
+        }} onClick={()=>{ setDvSubMode(dvSubMode==="podium"?"slots":"podium"); setStaffTarget(null); }}>
+          🏆 Podium
+        </button>
         <button style={{...css.staffActBtn, background:"#f0f4ff", border:`1px solid ${T.navy}44`, color:T.navy}}
           onClick={()=>setShowStats(true)}>
           📊 Stats
@@ -1861,6 +2036,10 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
       )}
 
       {/* ── MEMENTO MODE ── */}
+      {dvSubMode === "podium" && (
+        <PodiumView bookingHistory={bookingHistory} strapSlots={strapSlots} cryoSlots={cryoSlots} />
+      )}
+
       {dvSubMode === "memento" && (
         <MementoView date={dvDate} mementoItems={mementoItems} setMementoItems={setMementoItems} />
       )}
@@ -1879,7 +2058,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
       )}
 
       {/* ── CALENDAR MODES ── */}
-      {dvSubMode !== "history" && dvSubMode !== "planning" && dvSubMode !== "cryo" && dvSubMode !== "memento" && (
+      {dvSubMode !== "history" && dvSubMode !== "planning" && dvSubMode !== "cryo" && dvSubMode !== "memento" && dvSubMode !== "podium" && (
         <>
           {/* Menu contextuel assignation */}
           {contextMenu && (
