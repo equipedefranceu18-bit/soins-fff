@@ -2146,6 +2146,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
                 return;
               }
               if (dvSubMode === "addPlayer") {
+                // Slot ouvert ou fermé → ouvrir menu d'assignation
                 setStaffTarget({ practId, date, time });
                 if (e) setContextMenu({ x: e.clientX, y: e.clientY, practId, date, time, duration: duration || staffDefaultDuration });
               } else if (dvSubMode === "recurring") {
@@ -2153,6 +2154,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
               } else if (dvSubMode === "split") {
                 if (!time.endsWith(":30")) toggleSplit(practId, date, time);
               } else {
+                // Mode slots → toggler ouvert/fermé
                 toggleOpen(practId, date, time, duration||30);
               }
             }}
@@ -2577,10 +2579,19 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     if (isPastDay && subMode !== "addPlayer") return;
     const { slotOpen, booking } = getSlotStatus(kines.find(k=>k.id===practId), time);
     if (booking) {
+      // Slot réservé → ouvrir le modal d'action (note, déplacer, supprimer)
+      onCellClick(practId, date, time, defaultDuration, e);
+    } else if (slotOpen && subMode === "addPlayer") {
+      // Slot ouvert sans joueur + mode assignation → ouvrir le menu d'assignation
       onCellClick(practId, date, time, defaultDuration, e);
     } else if (slotOpen) {
+      // Slot ouvert en mode ouvrir/fermer → fermer
       onCellClick(practId, date, time, defaultDuration, e);
+    } else if (subMode === "addPlayer") {
+      // Slot fermé en mode assignation → ouvrir le slot ET assigner
+      openWithDuration(defaultDuration, practId, time, e);
     } else {
+      // Slot fermé en mode ouvrir/fermer → ouvrir
       openWithDuration(defaultDuration, practId, time, e);
     }
   }
