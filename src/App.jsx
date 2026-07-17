@@ -2575,14 +2575,11 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   function handleCellClick(practId, time, e) {
     const { booking } = getSlotStatus(kines.find(k=>k.id===practId), time);
     if (booking) {
-      // Slot réservé → modal d'action (note, déplacer, supprimer)
       onCellClick(practId, date, time, defaultDuration, e);
-    } else {
-      // Slot libre (ouvert ou fermé) → ouvrir menu d'assignation
-      onCellClick(practId, date, time, defaultDuration, e);
+      return;
     }
+    onCellClick(practId, date, time, defaultDuration, e);
   }
-
   async function openWithDuration(duration, practId, time, e) {
     onCellClick(practId, date, time, duration, e);
   }
@@ -2678,7 +2675,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           overflow: "hidden",
           cursor: "pointer",
         }}
-          onClick={(e) => { setSelectedCell(sel => sel === `${k.id}|${coveringTime}` ? null : `${k.id}|${coveringTime}`); handleCellClick(k.id, coveringTime, e); }}
+          onClick={(e) => { const ct = coveringTime; setSelectedCell(sel => sel === `${k.id}|${ct}` ? null : `${k.id}|${ct}`); handleCellClick(k.id, ct, e); }}
         />
       );
     }
