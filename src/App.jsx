@@ -2676,7 +2676,10 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           borderRight: `1px solid ${T.border}`,
           background: bg, borderLeft: bl,
           overflow: "hidden",
-        }} />
+          cursor: "pointer",
+        }}
+          onClick={(e) => { setSelectedCell(sel => sel === `${k.id}|${coveringTime}` ? null : `${k.id}|${coveringTime}`); handleCellClick(k.id, coveringTime, e); }}
+        />
       );
     }
 
