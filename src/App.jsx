@@ -1828,9 +1828,6 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
   }
 
   const subModes = [
-    { key:"slots",     label:"📅 Ouvrir/Fermer", color:"#00d4aa", hint:"Cliquez pour ouvrir ou fermer un créneau (ponctuel)." },
-
-
     { key:"addPlayer", label:"➕ Assigner",       color:"#a29bfe", hint:"Cliquez sur un créneau libre pour y assigner un joueur." },
     { key:"straps",    label:"🩹 Straps",          color:"#ff7043", hint:"Cliquez sur un créneau pour ouvrir/fermer un strap de 30 min. Couleur orange unique." },
     { key:"history",   label:"🗂 Historique",     color:"#8b949e", hint:"Consultez tous les soins passés." },
@@ -1920,7 +1917,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           fontWeight:800, fontSize:13, padding:"8px 14px", borderRadius:10,
           cursor:"pointer", whiteSpace:"nowrap",
         }}
-          onClick={()=>{ setDvSubMode(dvSubMode==="planning"?"slots":"planning"); setStaffTarget(null); }}>
+          onClick={()=>{ setDvSubMode(dvSubMode==="planning"?"addPlayer":"planning"); setStaffTarget(null); }}>
           🏃 Planning
         </button>
         {dvSubMode === "cryo" ? (
@@ -1947,7 +1944,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           background: dvSubMode==="memento" ? "#7c3aed" : "#f5f0ff",
           border: dvSubMode==="memento" ? "2px solid #7c3aed" : `1px solid #c4b5fd`,
           color: dvSubMode==="memento" ? "#fff" : "#7c3aed", fontWeight:800,
-        }} onClick={()=>{ setDvSubMode(dvSubMode==="memento"?"slots":"memento"); setStaffTarget(null); }}>
+        }} onClick={()=>{ setDvSubMode(dvSubMode==="memento"?"addPlayer":"memento"); setStaffTarget(null); }}>
           📋 Mémento
         </button>
         <button style={{
@@ -1955,7 +1952,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           background: dvSubMode==="podium" ? "#f59e0b" : "#fffbeb",
           border: dvSubMode==="podium" ? "2px solid #f59e0b" : "1px solid #fcd34d",
           color: dvSubMode==="podium" ? "#fff" : "#92400e", fontWeight:800,
-        }} onClick={()=>{ setDvSubMode(dvSubMode==="podium"?"slots":"podium"); setStaffTarget(null); }}>
+        }} onClick={()=>{ setDvSubMode(dvSubMode==="podium"?"addPlayer":"podium"); setStaffTarget(null); }}>
           🏆 Podium
         </button>
         <button style={{...css.staffActBtn, background:"#f0f4ff", border:`1px solid ${T.navy}44`, color:T.navy}}
@@ -2576,23 +2573,13 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   }
 
   function handleCellClick(practId, time, e) {
-    if (isPastDay && subMode !== "addPlayer") return;
-    const { slotOpen, booking } = getSlotStatus(kines.find(k=>k.id===practId), time);
+    const { booking } = getSlotStatus(kines.find(k=>k.id===practId), time);
     if (booking) {
-      // Slot réservé → ouvrir le modal d'action (note, déplacer, supprimer)
+      // Slot réservé → modal d'action (note, déplacer, supprimer)
       onCellClick(practId, date, time, defaultDuration, e);
-    } else if (slotOpen && subMode === "addPlayer") {
-      // Slot ouvert sans joueur + mode assignation → ouvrir le menu d'assignation
-      onCellClick(practId, date, time, defaultDuration, e);
-    } else if (slotOpen) {
-      // Slot ouvert en mode ouvrir/fermer → fermer
-      onCellClick(practId, date, time, defaultDuration, e);
-    } else if (subMode === "addPlayer") {
-      // Slot fermé en mode assignation → ouvrir le slot ET assigner
-      openWithDuration(defaultDuration, practId, time, e);
     } else {
-      // Slot fermé en mode ouvrir/fermer → ouvrir
-      openWithDuration(defaultDuration, practId, time, e);
+      // Slot libre (ouvert ou fermé) → ouvrir menu d'assignation
+      onCellClick(practId, date, time, defaultDuration, e);
     }
   }
 
@@ -2793,13 +2780,11 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           background: isHour ? "#d8dce8" : "#ccd0e0",
           borderBottom: isHour ? `1px solid #b8bdd0` : `1px solid #c5c9da`,
           borderLeft: "3px solid transparent",
-          cursor: subMode === "addPlayer" ? "pointer" : "default",
+          cursor: "pointer",
           display:"flex", alignItems:"center", justifyContent:"center",
         }}
-          onClick={(e) => {
-            if (subMode === "addPlayer") { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }
-          }}
-          title={subMode === "addPlayer" ? "Assigner un soin rétroactif" : undefined} />
+          onClick={(e) => { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }}
+          title="Assigner un soin" />
       );
     }
 
@@ -2869,9 +2854,9 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         ...commonStyle,
         background: bg, borderLeft: bl,
         display:"flex", alignItems:"center", justifyContent:"center",
-        cursor: (slotPast && subMode !== "addPlayer") ? "default" : "pointer",
+        cursor: "pointer",
       }}
-        onClick={(e) => { if (!slotPast || subMode === "addPlayer") { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); } }}
+        onClick={(e) => { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }}
         title={booking ? `${booking.player}` : slotOpen ? `Ouvert ${getSlotDuration(k.id,date,time)===60?"1h":"30'"}` : "Fermé — cliquer pour ouvrir"}>
         {indicator}
 
