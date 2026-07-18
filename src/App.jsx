@@ -2143,7 +2143,9 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
               if (dvSubMode === "addPlayer") {
                 // Slot ouvert ou fermé → ouvrir menu d'assignation
                 setStaffTarget({ practId, date, time });
-                if (e) setContextMenu({ x: e.clientX, y: e.clientY, practId, date, time, duration: duration || staffDefaultDuration });
+                const mx = e ? e.clientX : window.innerWidth / 2;
+                const my = e ? e.clientY : window.innerHeight / 2;
+                setContextMenu({ x: mx, y: my, practId, date, time, duration: duration || staffDefaultDuration });
               } else if (dvSubMode === "recurring") {
                 toggleRecurring(practId, date, time, staffDefaultDuration);
               } else if (dvSubMode === "split") {
@@ -2571,12 +2573,16 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   }
 
   function handleCellClick(practId, time, e) {
+    // Capturer les coordonnées immédiatement avant tout traitement async
+    const x = e ? e.clientX : window.innerWidth / 2;
+    const y = e ? e.clientY : window.innerHeight / 2;
+    const fakeE = { clientX: x, clientY: y };
     const { booking } = getSlotStatus(kines.find(k=>k.id===practId), time);
     if (booking) {
-      onCellClick(practId, date, time, defaultDuration, e);
+      onCellClick(practId, date, time, defaultDuration, fakeE);
       return;
     }
-    onCellClick(practId, date, time, defaultDuration, e);
+    onCellClick(practId, date, time, defaultDuration, fakeE);
   }
   async function openWithDuration(duration, practId, time, e) {
     onCellClick(practId, date, time, duration, e);
@@ -2673,7 +2679,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           overflow: "hidden",
           cursor: "pointer",
         }}
-          onClick={(e) => { const ct = coveringTime; setSelectedCell(sel => sel === `${k.id}|${ct}` ? null : `${k.id}|${ct}`); handleCellClick(k.id, ct, e); }}
+          onClick={(e) => { e.persist && e.persist(); const ct = coveringTime; setSelectedCell(sel => sel === `${k.id}|${ct}` ? null : `${k.id}|${ct}`); handleCellClick(k.id, ct, e); }}
         />
       );
     }
@@ -2847,7 +2853,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         display:"flex", alignItems:"center", justifyContent:"center",
         cursor: "pointer",
       }}
-        onClick={(e) => { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }}
+        onClick={(e) => { e.persist && e.persist(); setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }}
         title="">
         {indicator}
 
