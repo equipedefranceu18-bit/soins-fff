@@ -2143,8 +2143,9 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
               if (dvSubMode === "addPlayer") {
                 // Slot ouvert ou fermé → ouvrir menu d'assignation
                 setStaffTarget({ practId, date, time });
-                const mx = e ? e.clientX : window.innerWidth / 2;
-                const my = e ? e.clientY : window.innerHeight / 2;
+                const mx = (e && e.clientX) ? e.clientX : window.innerWidth / 2;
+                const my = (e && e.clientY) ? e.clientY : window.innerHeight / 2;
+                console.log("OPEN MENU", practId, date, time, mx, my);
                 setContextMenu({ x: mx, y: my, practId, date, time, duration: duration || staffDefaultDuration });
               } else if (dvSubMode === "recurring") {
                 toggleRecurring(practId, date, time, staffDefaultDuration);
