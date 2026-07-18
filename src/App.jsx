@@ -644,16 +644,14 @@ export default function App() {
   }
 
   async function staffBookSlot(practId, date, time, player, duration) {
-    const is30 = duration ? duration===30 : (time.endsWith(":30") || isSplit(practId, date, time));
+    const is30 = duration ? duration===30 : time.endsWith(":30");
     const dur = is30 ? 30 : 60;
-    // Si 30' sur un créneau :00, s'assurer que le :30 suivant est fermé pour éviter le covering
-    if (dur === 30 && time.endsWith(":00")) {
-      const halfTime = `${time.split(":")[0]}:30`;
-      await supabase.from("closed_slots").upsert({pract_id:practId, date, time:halfTime}, {onConflict:"pract_id,date,time"});
-    }
-    await supabase.from("open_slots").upsert({pract_id:practId, date, time, duration:dur}, {onConflict:"pract_id,date,time"});
+    // Supprimer tout open_slot existant sur ce créneau (on ne veut plus de ✓ sans joueur)
+    await supabase.from("open_slots").delete().match({pract_id:practId, date, time});
     await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
-    await supabase.from("bookings").delete().match({pract_id:practId, date, time}).eq("cancelled", false);
+    // Annuler tout booking existant
+    await supabase.from("bookings").update({cancelled:true, cancelled_at:new Date().toISOString()}).match({pract_id:practId, date, time}).eq("cancelled", false);
+    // Créer le nouveau booking
     await supabase.from("bookings").insert({pract_id:practId, date, time, player, locked:true, note:"", duration:dur, booked_at:new Date().toISOString(), cancelled:false});
     await loadAll();
   }
@@ -1709,7 +1707,7 @@ function PlayerSlotCell({ avail, slotOpen, booking, past, selected, color, weeke
       ...(halfSlot ? { borderTop: `1px dashed ${color}44` } : {}),
       cursor:"pointer",
     }} onClick={onClick} title={halfSlot ? "Créneau 30 minutes" : "Créneau 1 heure"}>
-      <span style={{fontSize:9,color,fontWeight:800}}>✓</span>
+      
       {halfSlot && (
         <span style={{
           fontSize:8, fontWeight:800, color:"#fff",
@@ -2160,8 +2158,8 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
 
           <div style={css.staffLegend}>
             <span style={{...css.legendBadge}}>↺ Récurrent (couleur du kiné)</span>
-            <span style={{...css.legendBadge}}>✓ Ouvert 1h</span>
-            <span style={{...css.legendBadge,borderLeft:"2px solid #fd79a8"}}>✓ 30'</span>
+            
+            
             <span style={css.legendBadge}>■ Réservé → clic = commenter</span>
             <span style={css.legendBadge}>🔒 Assigné staff</span>
             <span style={{...css.legendBadge,color:"#ffd166"}}>⚡ ≥21h cascade</span>
@@ -2832,17 +2830,10 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         </div>
       );
     } else if (slotOpen) {
-      bg = rec ? k.color+"14" : k.color+"0c";
-      bl = rec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
-      const dur = getSlotDuration(k.id, date, time);
-      indicator = (
-        <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:0}}>
-          <span style={{fontSize:12, color:k.color, fontWeight:800, opacity:0.7}}>
-            {rec ? "↺" : "✓"}
-          </span>
-          <span style={{fontSize:7, color:k.color+"99", fontWeight:600}}>{dur===60?"1h":"30'"}</span>
-        </div>
-      );
+      // Slot ouvert sans booking → afficher + discret cliquable (pour assigner)
+      bg = isHour ? T.surface : T.surface3+"88";
+      bl = "3px solid transparent";
+      indicator = <span style={{fontSize:10, color:T.textDim, opacity:0.2}}>+</span>;
     } else {
       indicator = <span style={{fontSize:10, color:T.textDim, opacity:0.2}}>+</span>;
     }
@@ -2857,7 +2848,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         cursor: "pointer",
       }}
         onClick={(e) => { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }}
-        title={booking ? `${booking.player}` : slotOpen ? `Ouvert ${getSlotDuration(k.id,date,time)===60?"1h":"30'"}` : "Fermé — cliquer pour ouvrir"}>
+        title="">
         {indicator}
 
       </div>
