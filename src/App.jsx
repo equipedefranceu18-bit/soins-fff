@@ -2683,7 +2683,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           overflow: "hidden",
           cursor: "pointer",
         }}
-          onClick={(e) => { e.persist && e.persist(); const ct = coveringTime; setSelectedCell(sel => sel === `${k.id}|${ct}` ? null : `${k.id}|${ct}`); handleCellClick(k.id, ct, e); }}
+          onClick={(e) => { e.persist && e.persist(); const ct = coveringTime; e.stopPropagation(); setSelectedCell(sel => sel === `${k.id}|${ct}` ? null : `${k.id}|${ct}`); handleCellClick(k.id, ct, e); }}
         />
       );
     }
@@ -2791,7 +2791,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           cursor: "pointer",
           display:"flex", alignItems:"center", justifyContent:"center",
         }}
-          onClick={(e) => { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }}
+          onClick={(e) => { e.stopPropagation(); setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }}
           title="Assigner un soin" />
       );
     }
@@ -2857,7 +2857,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         display:"flex", alignItems:"center", justifyContent:"center",
         cursor: "pointer",
       }}
-        onClick={(e) => { e.persist && e.persist(); setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }}
+        onClick={(e) => { e.persist && e.persist(); e.stopPropagation(); setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }}
         title="">
         {indicator}
 
