@@ -644,16 +644,12 @@ export default function App() {
   }
 
   async function staffBookSlot(practId, date, time, player, duration) {
-    const is30 = duration ? duration===30 : (time.endsWith(":30") || isSplit(practId, date, time));
+    const is30 = duration ? duration===30 : time.endsWith(":30");
     const dur = is30 ? 30 : 60;
-    // Si 30' sur un créneau :00, s'assurer que le :30 suivant est fermé pour éviter le covering
-    if (dur === 30 && time.endsWith(":00")) {
-      const halfTime = `${time.split(":")[0]}:30`;
-      await supabase.from("closed_slots").upsert({pract_id:practId, date, time:halfTime}, {onConflict:"pract_id,date,time"});
-    }
-    await supabase.from("open_slots").upsert({pract_id:practId, date, time, duration:dur}, {onConflict:"pract_id,date,time"});
+    // Supprimer l'open_slot existant pour ne pas afficher le ✓
+    await supabase.from("open_slots").delete().match({pract_id:practId, date, time});
     await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
-    await supabase.from("bookings").delete().match({pract_id:practId, date, time}).eq("cancelled", false);
+    await supabase.from("bookings").update({cancelled:true, cancelled_at:new Date().toISOString()}).match({pract_id:practId, date, time}).eq("cancelled", false);
     await supabase.from("bookings").insert({pract_id:practId, date, time, player, locked:true, note:"", duration:dur, booked_at:new Date().toISOString(), cancelled:false});
     await loadAll();
   }
