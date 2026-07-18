@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://khueuwkglmtvoqctyaor.supabase.co";
@@ -321,8 +321,10 @@ export default function App() {
   const [bookingHistory, setBookingHistory] = useState([]); // toutes les lignes brutes (y compris annulées)
   const [mementoItems, setMementoItems] = useState([]);
   const [dbReady,    setDbReady]    = useState(false);
+  const blockLoadAll = useRef(false);
 
   const loadAll = useCallback(async () => {
+    if (blockLoadAll.current) return;
     try {
       const [o,c,r,s,b] = await Promise.all([
         supabase.from("open_slots").select("*"),
@@ -659,8 +661,9 @@ export default function App() {
     // Mettre à jour le state local immédiatement APRÈS confirmation Supabase
     setBookings(prev => ({ ...prev, [slotKey(practId, date, time)]: newBooking }));
     setOpen(prev => ({ ...prev, [slotKey(practId, date, time)]: dur }));
-    // loadAll en arrière-plan pour sync complète
-    loadAll();
+    // Bloquer loadAll 2s pour que l'affichage optimiste reste visible
+    blockLoadAll.current = true;
+    setTimeout(() => { blockLoadAll.current = false; loadAll(); }, 2000);
   }
 
   async function changeDuration(practId, date, time, newDuration) {
