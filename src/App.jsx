@@ -2146,7 +2146,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
                 const mx = (e && e.clientX) ? e.clientX : window.innerWidth / 2;
                 const my = (e && e.clientY) ? e.clientY : window.innerHeight / 2;
                 console.log("OPEN MENU", practId, date, time, mx, my);
-                setContextMenu({ x: mx, y: my, practId, date, time, duration: duration || staffDefaultDuration });
+                setTimeout(() => setContextMenu({ x: mx, y: my, practId, date, time, duration: duration || staffDefaultDuration }), 0);
               } else if (dvSubMode === "recurring") {
                 toggleRecurring(practId, date, time, staffDefaultDuration);
               } else if (dvSubMode === "split") {
