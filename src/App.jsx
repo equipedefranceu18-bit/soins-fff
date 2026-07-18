@@ -655,7 +655,8 @@ export default function App() {
     await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
     await supabase.from("bookings").update({cancelled:true, cancelled_at:new Date().toISOString()}).match({pract_id:practId, date, time}).eq("cancelled", false);
     await supabase.from("bookings").insert({pract_id:practId, date, time, player, locked:true, note:"", duration:dur, booked_at:new Date().toISOString(), cancelled:false});
-    try { await loadAll(); } catch(e) { window.location.reload(); }
+    await loadAll().catch(() => {});
+    window.location.reload();
   }
 
   async function changeDuration(practId, date, time, newDuration) {
