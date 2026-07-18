@@ -2600,10 +2600,11 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     while (i < displayTimes.length) {
       const time = displayTimes[i];
       const booking = getBooking(k.id, date, time);
-      const slotOpen = isSlotOpen(k.id, date, time);
+      const slotOpen = isSlotOpen(k.id, date, time) || !!(booking && !booking.cancelled && booking.player);
       const prevOpenDur = open[slotKey(k.id, date, time)];
       let dur = 0;
-      if (booking) dur = booking.duration || 60;
+      if (booking && !booking.cancelled && booking.player) dur = booking.duration || 60;
+      else if (booking) dur = booking.duration || 60;
       else if (prevOpenDur) dur = prevOpenDur;
       else if (slotOpen) dur = getSlotDuration(k.id, date, time);
       // Nombre d'intervalles de 15' que ce slot occupe
@@ -2639,7 +2640,9 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   // peut avoir des cellules fusionnées H30*2
   // Pour l'axe temps, on affiche toujours H30 par créneau
   function renderCell(k, time, h) {
-    const { booking, slotOpen, rec } = getSlotStatus(k, time);
+    const { booking, slotOpen: _slotOpen, rec } = getSlotStatus(k, time);
+    // Un booking actif doit toujours afficher le bloc coloré, même sans open_slot
+    const slotOpen = _slotOpen || !!(booking && !booking.cancelled && booking.player);
     const isTarget = staffTarget?.practId===k.id && staffTarget?.date===date && staffTarget?.time===time;
     const isHour = time.endsWith(":00");
 
