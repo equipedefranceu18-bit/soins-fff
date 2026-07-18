@@ -663,7 +663,7 @@ export default function App() {
     setOpen(prev => ({ ...prev, [slotKey(practId, date, time)]: dur }));
     // Bloquer loadAll 2s pour que l'affichage optimiste reste visible
     blockLoadAll.current = true;
-    setTimeout(() => { blockLoadAll.current = false; loadAll(); }, 2000);
+    setTimeout(() => { blockLoadAll.current = false; loadAll(); }, 10000);
   }
 
   async function changeDuration(practId, date, time, newDuration) {
