@@ -307,6 +307,10 @@ const DAY_NAMES = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Diman
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function App() {
+  // Désactiver le Service Worker qui interfère avec Supabase realtime
+  if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+  }
   const [view, setView] = useState("home");
 
   // Supabase state — synced from DB
@@ -651,7 +655,7 @@ export default function App() {
     await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
     await supabase.from("bookings").update({cancelled:true, cancelled_at:new Date().toISOString()}).match({pract_id:practId, date, time}).eq("cancelled", false);
     await supabase.from("bookings").insert({pract_id:practId, date, time, player, locked:true, note:"", duration:dur, booked_at:new Date().toISOString(), cancelled:false});
-    await loadAll();
+    try { await loadAll(); } catch(e) { window.location.reload(); }
   }
 
   async function changeDuration(practId, date, time, newDuration) {
