@@ -2147,7 +2147,9 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
               }
               if (dvSubMode === "addPlayer") {
                 setStaffTarget({ practId, date, time });
-                if (e) setContextMenu({ x: e.clientX, y: e.clientY, practId, date, time, duration: duration || staffDefaultDuration });
+                const mx = (e && e.clientX) ? e.clientX : window.innerWidth / 2;
+                const my = (e && e.clientY) ? e.clientY : window.innerHeight / 2;
+                setContextMenu({ x: mx, y: my, practId, date, time, duration: duration || staffDefaultDuration });
               } else if (dvSubMode === "recurring") {
                 toggleRecurring(practId, date, time, staffDefaultDuration);
               } else if (dvSubMode === "split") {
@@ -2785,7 +2787,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           display:"flex", alignItems:"center", justifyContent:"center",
         }}
           onClick={(e) => {
-            if (subMode === "addPlayer") { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }
+            if (subMode === "addPlayer") { e.stopPropagation(); setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }
             else if (subMode === "straps" && isKine) { toggleStrap(k.id, date, time); }
           }}
           title={subMode === "addPlayer" ? "Assigner un soin rétroactif" : undefined} />
@@ -2860,7 +2862,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         display:"flex", alignItems:"center", justifyContent:"center",
         cursor: (isPastDay && subMode !== "addPlayer") ? "default" : "pointer",
       }}
-        onClick={(e) => { if (!isPastDay || subMode === "addPlayer") { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); } }}
+        onClick={(e) => { if (!isPastDay || subMode === "addPlayer") { e.stopPropagation(); setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); } }}
         title={booking ? `${booking.player}` : slotOpen ? `Ouvert ${getSlotDuration(k.id,date,time)===60?"1h":"30'"}` : "Fermé — cliquer pour ouvrir"}>
         {indicator}
 
