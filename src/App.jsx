@@ -2056,47 +2056,8 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
       {/* ── CALENDAR MODES ── */}
       {dvSubMode !== "history" && dvSubMode !== "planning" && dvSubMode !== "cryo" && dvSubMode !== "memento" && dvSubMode !== "podium" && (
         <>
-          {/* Menu contextuel assignation */}
-          {contextMenu && (
-            <div style={{position:"fixed",inset:0,zIndex:100}} onClick={()=>{ setContextMenu(null); setStaffTarget(null); }}>
-              <div style={{
-                position:"fixed",
-                left: Math.min(contextMenu.x + 4, window.innerWidth - 220),
-                top: Math.min(contextMenu.y + 4, window.innerHeight - 340),
-                width:200, background:"#fff", borderRadius:12,
-                boxShadow:"0 8px 32px rgba(0,35,149,0.2)", border:`1px solid ${T.border}`,
-                zIndex:101, overflow:"hidden",
-              }} onClick={e=>e.stopPropagation()}>
-                <div style={{padding:"8px 12px", fontSize:11, fontWeight:700, color:T.textDim, background:T.surface2, borderBottom:`1px solid ${T.border}`}}>
-                  <span style={{color: kines4.find(k=>k.id===contextMenu.practId)?.color}}>
-                    {kines4.find(k=>k.id===contextMenu.practId)?.name}
-                  </span> · {contextMenu.time}
-                  <span style={{marginLeft:8, color: contextMenu.duration===30 ? T.red : T.navy, fontWeight:800}}>
-                    {contextMenu.duration===30 ? "30'" : "1h"}
-                  </span>
-                </div>
-                <div style={{maxHeight:260, overflowY:"auto"}}>
-                  {PLAYERS.map(p => (
-                    <div key={p} onClick={()=>{
-                      if (contextMenu.mode === "strap") {
-                        bookStrap(contextMenu.practId, contextMenu.date, contextMenu.time, p);
-                      } else {
-                        staffBookSlot(contextMenu.practId, contextMenu.date, contextMenu.time, p, contextMenu.duration || staffDefaultDuration);
-                      }
-                      setContextMenu(null); setStaffTarget(null);
-                    }} style={{
-                      padding:"8px 12px", fontSize:13, fontWeight:600, cursor:"pointer",
-                      color:T.text, borderBottom:`1px solid ${T.border2}`, background:"#fff",
-                    }}
-                    onMouseEnter={e=>e.currentTarget.style.background=T.surface2}
-                    onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
-                      {p}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+
+
 
           <MultiKineDay
             kines={kines4}
@@ -2347,6 +2308,48 @@ function MementoView({ date, mementoItems, setMementoItems }) {
           La liste est partagée entre tous les appareils. Les coches se remettent à zéro chaque jour.
         </p>
       </div>
+
+      {/* Menu contextuel assignation */}
+      {contextMenu && (
+        <div style={{position:"fixed",inset:0,zIndex:100}} onClick={()=>{ setContextMenu(null); setStaffTarget(null); }}>
+          <div style={{
+            position:"fixed",
+            left: Math.min(contextMenu.x + 4, window.innerWidth - 220),
+            top: Math.min(contextMenu.y + 4, window.innerHeight - 340),
+            width:200, background:"#fff", borderRadius:12,
+            boxShadow:"0 8px 32px rgba(0,35,149,0.2)", border:`1px solid ${T.border}`,
+            zIndex:101, overflow:"hidden",
+          }} onClick={e=>e.stopPropagation()}>
+            <div style={{padding:"8px 12px", fontSize:11, fontWeight:700, color:T.textDim, background:T.surface2, borderBottom:`1px solid ${T.border}`}}>
+              <span style={{color: kines4.find(k=>k.id===contextMenu.practId)?.color}}>
+                {kines4.find(k=>k.id===contextMenu.practId)?.name}
+              </span> · {contextMenu.time}
+              <span style={{marginLeft:8, color: contextMenu.duration===30 ? T.red : T.navy, fontWeight:800}}>
+                {contextMenu.duration===30 ? "30'" : "1h"}
+              </span>
+            </div>
+            <div style={{maxHeight:260, overflowY:"auto"}}>
+              {PLAYERS.map(p => (
+                <div key={p} onClick={()=>{
+                  if (contextMenu.mode === "strap") {
+                    bookStrap(contextMenu.practId, contextMenu.date, contextMenu.time, p);
+                  } else {
+                    staffBookSlot(contextMenu.practId, contextMenu.date, contextMenu.time, p, contextMenu.duration || staffDefaultDuration);
+                  }
+                  setContextMenu(null); setStaffTarget(null);
+                }} style={{
+                  padding:"8px 12px", fontSize:13, fontWeight:600, cursor:"pointer",
+                  color:T.text, borderBottom:`1px solid ${T.border2}`, background:"#fff",
+                }}
+                onMouseEnter={e=>e.currentTarget.style.background=T.surface2}
+                onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                  {p}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
