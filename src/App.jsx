@@ -337,6 +337,7 @@ export default function App() {
       const cm={}; (c.data||[]).forEach(x=>{cm[`${x.pract_id}|${x.date}|${x.time}`]=true;});
       const rm={}; (r.data||[]).forEach(x=>{rm[`${x.pract_id}|dow${x.dow}|${x.time}`]=x.duration||60;});
       const sm={}; (s.data||[]).forEach(x=>{sm[`${x.pract_id}|${x.date}|${x.base_time}`]=true;});
+      console.log("BOOKINGS FROM SUPABASE:", b.data?.slice(0,5));
       const bm={}; const stm={}; const allHistory=[];
       (b.data||[]).forEach(x => {
         if (x.pract_id && x.pract_id.startsWith(STRAP_ID+"_")) {
