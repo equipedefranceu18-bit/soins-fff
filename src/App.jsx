@@ -307,10 +307,6 @@ const DAY_NAMES = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Diman
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function App() {
-  // Désactiver le Service Worker qui interfère avec Supabase realtime
-  if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
-  }
   const [view, setView] = useState("home");
 
   // Supabase state — synced from DB
@@ -648,15 +644,18 @@ export default function App() {
   }
 
   async function staffBookSlot(practId, date, time, player, duration) {
-    const is30 = duration ? duration===30 : time.endsWith(":30");
+    const is30 = duration ? duration===30 : (time.endsWith(":30") || isSplit(practId, date, time));
     const dur = is30 ? 30 : 60;
-    // Ne PAS créer d'open_slot — juste le booking direct
-    await supabase.from("open_slots").delete().match({pract_id:practId, date, time});
+    // Si 30' sur un créneau :00, s'assurer que le :30 suivant est fermé pour éviter le covering
+    if (dur === 30 && time.endsWith(":00")) {
+      const halfTime = `${time.split(":")[0]}:30`;
+      await supabase.from("closed_slots").upsert({pract_id:practId, date, time:halfTime}, {onConflict:"pract_id,date,time"});
+    }
+    await supabase.from("open_slots").upsert({pract_id:practId, date, time, duration:dur}, {onConflict:"pract_id,date,time"});
     await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
-    await supabase.from("bookings").update({cancelled:true, cancelled_at:new Date().toISOString()}).match({pract_id:practId, date, time}).eq("cancelled", false);
+    await supabase.from("bookings").delete().match({pract_id:practId, date, time}).eq("cancelled", false);
     await supabase.from("bookings").insert({pract_id:practId, date, time, player, locked:true, note:"", duration:dur, booked_at:new Date().toISOString(), cancelled:false});
-    await loadAll().catch(() => {});
-    window.location.reload();
+    await loadAll();
   }
 
   async function changeDuration(practId, date, time, newDuration) {
@@ -2788,7 +2787,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           display:"flex", alignItems:"center", justifyContent:"center",
         }}
           onClick={(e) => {
-            if (subMode === "addPlayer") { e.stopPropagation(); setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }
+            if (subMode === "addPlayer") { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }
             else if (subMode === "straps" && isKine) { toggleStrap(k.id, date, time); }
           }}
           title={subMode === "addPlayer" ? "Assigner un soin rétroactif" : undefined} />
@@ -2863,7 +2862,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         display:"flex", alignItems:"center", justifyContent:"center",
         cursor: (isPastDay && subMode !== "addPlayer") ? "default" : "pointer",
       }}
-        onClick={(e) => { if (!isPastDay || subMode === "addPlayer") { e.stopPropagation(); setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); } }}
+        onClick={(e) => { if (!isPastDay || subMode === "addPlayer") { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); } }}
         title={booking ? `${booking.player}` : slotOpen ? `Ouvert ${getSlotDuration(k.id,date,time)===60?"1h":"30'"}` : "Fermé — cliquer pour ouvrir"}>
         {indicator}
 
