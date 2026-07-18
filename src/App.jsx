@@ -650,10 +650,13 @@ export default function App() {
       const halfTime = `${time.split(":")[0]}:30`;
       await supabase.from("closed_slots").upsert({pract_id:practId, date, time:halfTime}, {onConflict:"pract_id,date,time"});
     }
-    // Insérer le booking EN PREMIER pour que le realtime affiche le nom immédiatement
+    // Mettre à jour le state local IMMÉDIATEMENT pour affichage instantané
+    const newBooking = {pract_id:practId, date, time, player, locked:true, note:"", duration:dur, booked_at:new Date().toISOString(), cancelled:false};
+    setBookings(prev => ({ ...prev, [slotKey(practId, date, time)]: newBooking }));
+    setOpen(prev => ({ ...prev, [slotKey(practId, date, time)]: dur }));
+    // Puis sauvegarder dans Supabase
     await supabase.from("bookings").delete().match({pract_id:practId, date, time}).eq("cancelled", false);
-    await supabase.from("bookings").insert({pract_id:practId, date, time, player, locked:true, note:"", duration:dur, booked_at:new Date().toISOString(), cancelled:false});
-    // Puis créer l'open_slot (nécessaire pour l'affichage)
+    await supabase.from("bookings").insert(newBooking);
     await supabase.from("open_slots").upsert({pract_id:practId, date, time, duration:dur}, {onConflict:"pract_id,date,time"});
     await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
     await loadAll();
