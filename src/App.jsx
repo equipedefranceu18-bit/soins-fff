@@ -644,14 +644,16 @@ export default function App() {
   }
 
   async function staffBookSlot(practId, date, time, player, duration) {
-    const is30 = duration ? duration===30 : time.endsWith(":30");
+    const is30 = duration ? duration===30 : (time.endsWith(":30") || isSplit(practId, date, time));
     const dur = is30 ? 30 : 60;
-    // Supprimer tout open_slot existant sur ce créneau (on ne veut plus de ✓ sans joueur)
-    await supabase.from("open_slots").delete().match({pract_id:practId, date, time});
+    // Si 30' sur un créneau :00, s'assurer que le :30 suivant est fermé pour éviter le covering
+    if (dur === 30 && time.endsWith(":00")) {
+      const halfTime = `${time.split(":")[0]}:30`;
+      await supabase.from("closed_slots").upsert({pract_id:practId, date, time:halfTime}, {onConflict:"pract_id,date,time"});
+    }
+    await supabase.from("open_slots").upsert({pract_id:practId, date, time, duration:dur}, {onConflict:"pract_id,date,time"});
     await supabase.from("closed_slots").delete().match({pract_id:practId, date, time});
-    // Annuler tout booking existant
-    await supabase.from("bookings").update({cancelled:true, cancelled_at:new Date().toISOString()}).match({pract_id:practId, date, time}).eq("cancelled", false);
-    // Créer le nouveau booking
+    await supabase.from("bookings").delete().match({pract_id:practId, date, time}).eq("cancelled", false);
     await supabase.from("bookings").insert({pract_id:practId, date, time, player, locked:true, note:"", duration:dur, booked_at:new Date().toISOString(), cancelled:false});
     await loadAll();
   }
@@ -1707,7 +1709,7 @@ function PlayerSlotCell({ avail, slotOpen, booking, past, selected, color, weeke
       ...(halfSlot ? { borderTop: `1px dashed ${color}44` } : {}),
       cursor:"pointer",
     }} onClick={onClick} title={halfSlot ? "Créneau 30 minutes" : "Créneau 1 heure"}>
-      
+      <span style={{fontSize:9,color,fontWeight:800}}>✓</span>
       {halfSlot && (
         <span style={{
           fontSize:8, fontWeight:800, color:"#fff",
@@ -1826,6 +1828,9 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
   }
 
   const subModes = [
+    { key:"slots",     label:"📅 Ouvrir/Fermer", color:"#00d4aa", hint:"Cliquez pour ouvrir ou fermer un créneau (ponctuel)." },
+
+
     { key:"addPlayer", label:"➕ Assigner",       color:"#a29bfe", hint:"Cliquez sur un créneau libre pour y assigner un joueur." },
     { key:"straps",    label:"🩹 Straps",          color:"#ff7043", hint:"Cliquez sur un créneau pour ouvrir/fermer un strap de 30 min. Couleur orange unique." },
     { key:"history",   label:"🗂 Historique",     color:"#8b949e", hint:"Consultez tous les soins passés." },
@@ -1915,7 +1920,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           fontWeight:800, fontSize:13, padding:"8px 14px", borderRadius:10,
           cursor:"pointer", whiteSpace:"nowrap",
         }}
-          onClick={()=>{ setDvSubMode(dvSubMode==="planning"?"addPlayer":"planning"); setStaffTarget(null); }}>
+          onClick={()=>{ setDvSubMode(dvSubMode==="planning"?"slots":"planning"); setStaffTarget(null); }}>
           🏃 Planning
         </button>
         {dvSubMode === "cryo" ? (
@@ -1942,7 +1947,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           background: dvSubMode==="memento" ? "#7c3aed" : "#f5f0ff",
           border: dvSubMode==="memento" ? "2px solid #7c3aed" : `1px solid #c4b5fd`,
           color: dvSubMode==="memento" ? "#fff" : "#7c3aed", fontWeight:800,
-        }} onClick={()=>{ setDvSubMode(dvSubMode==="memento"?"addPlayer":"memento"); setStaffTarget(null); }}>
+        }} onClick={()=>{ setDvSubMode(dvSubMode==="memento"?"slots":"memento"); setStaffTarget(null); }}>
           📋 Mémento
         </button>
         <button style={{
@@ -1950,7 +1955,7 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
           background: dvSubMode==="podium" ? "#f59e0b" : "#fffbeb",
           border: dvSubMode==="podium" ? "2px solid #f59e0b" : "1px solid #fcd34d",
           color: dvSubMode==="podium" ? "#fff" : "#92400e", fontWeight:800,
-        }} onClick={()=>{ setDvSubMode(dvSubMode==="podium"?"addPlayer":"podium"); setStaffTarget(null); }}>
+        }} onClick={()=>{ setDvSubMode(dvSubMode==="podium"?"slots":"podium"); setStaffTarget(null); }}>
           🏆 Podium
         </button>
         <button style={{...css.staffActBtn, background:"#f0f4ff", border:`1px solid ${T.navy}44`, color:T.navy}}
@@ -2056,8 +2061,47 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
       {/* ── CALENDAR MODES ── */}
       {dvSubMode !== "history" && dvSubMode !== "planning" && dvSubMode !== "cryo" && dvSubMode !== "memento" && dvSubMode !== "podium" && (
         <>
-
-
+          {/* Menu contextuel assignation */}
+          {contextMenu && (
+            <div style={{position:"fixed",inset:0,zIndex:100}} onClick={()=>{ setContextMenu(null); setStaffTarget(null); }}>
+              <div style={{
+                position:"fixed",
+                left: Math.min(contextMenu.x + 4, window.innerWidth - 220),
+                top: Math.min(contextMenu.y + 4, window.innerHeight - 340),
+                width:200, background:"#fff", borderRadius:12,
+                boxShadow:"0 8px 32px rgba(0,35,149,0.2)", border:`1px solid ${T.border}`,
+                zIndex:101, overflow:"hidden",
+              }} onClick={e=>e.stopPropagation()}>
+                <div style={{padding:"8px 12px", fontSize:11, fontWeight:700, color:T.textDim, background:T.surface2, borderBottom:`1px solid ${T.border}`}}>
+                  <span style={{color: kines4.find(k=>k.id===contextMenu.practId)?.color}}>
+                    {kines4.find(k=>k.id===contextMenu.practId)?.name}
+                  </span> · {contextMenu.time}
+                  <span style={{marginLeft:8, color: contextMenu.duration===30 ? T.red : T.navy, fontWeight:800}}>
+                    {contextMenu.duration===30 ? "30'" : "1h"}
+                  </span>
+                </div>
+                <div style={{maxHeight:260, overflowY:"auto"}}>
+                  {PLAYERS.map(p => (
+                    <div key={p} onClick={()=>{
+                      if (contextMenu.mode === "strap") {
+                        bookStrap(contextMenu.practId, contextMenu.date, contextMenu.time, p);
+                      } else {
+                        staffBookSlot(contextMenu.practId, contextMenu.date, contextMenu.time, p, contextMenu.duration || staffDefaultDuration);
+                      }
+                      setContextMenu(null); setStaffTarget(null);
+                    }} style={{
+                      padding:"8px 12px", fontSize:13, fontWeight:600, cursor:"pointer",
+                      color:T.text, borderBottom:`1px solid ${T.border2}`, background:"#fff",
+                    }}
+                    onMouseEnter={e=>e.currentTarget.style.background=T.surface2}
+                    onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                      {p}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           <MultiKineDay
             kines={kines4}
@@ -2102,18 +2146,13 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
                 return;
               }
               if (dvSubMode === "addPlayer") {
-                // Slot ouvert ou fermé → ouvrir menu d'assignation
                 setStaffTarget({ practId, date, time });
-                const mx = (e && e.clientX) ? e.clientX : window.innerWidth / 2;
-                const my = (e && e.clientY) ? e.clientY : window.innerHeight / 2;
-                console.log("OPEN MENU", practId, date, time, mx, my);
-                setTimeout(() => setContextMenu({ x: mx, y: my, practId, date, time, duration: duration || staffDefaultDuration }), 0);
+                if (e) setContextMenu({ x: e.clientX, y: e.clientY, practId, date, time, duration: duration || staffDefaultDuration });
               } else if (dvSubMode === "recurring") {
                 toggleRecurring(practId, date, time, staffDefaultDuration);
               } else if (dvSubMode === "split") {
                 if (!time.endsWith(":30")) toggleSplit(practId, date, time);
               } else {
-                // Mode slots → toggler ouvert/fermé
                 toggleOpen(practId, date, time, duration||30);
               }
             }}
@@ -2122,8 +2161,8 @@ function StaffView({ loadAll, practitioners, days, dayOffset, setDayOffset, staf
 
           <div style={css.staffLegend}>
             <span style={{...css.legendBadge}}>↺ Récurrent (couleur du kiné)</span>
-            
-            
+            <span style={{...css.legendBadge}}>✓ Ouvert 1h</span>
+            <span style={{...css.legendBadge,borderLeft:"2px solid #fd79a8"}}>✓ 30'</span>
             <span style={css.legendBadge}>■ Réservé → clic = commenter</span>
             <span style={css.legendBadge}>🔒 Assigné staff</span>
             <span style={{...css.legendBadge,color:"#ffd166"}}>⚡ ≥21h cascade</span>
@@ -2308,48 +2347,6 @@ function MementoView({ date, mementoItems, setMementoItems }) {
           La liste est partagée entre tous les appareils. Les coches se remettent à zéro chaque jour.
         </p>
       </div>
-
-      {/* Menu contextuel assignation */}
-      {contextMenu && (
-        <div style={{position:"fixed",inset:0,zIndex:100}} onClick={()=>{ setContextMenu(null); setStaffTarget(null); }}>
-          <div style={{
-            position:"fixed",
-            left: Math.min(contextMenu.x + 4, window.innerWidth - 220),
-            top: Math.min(contextMenu.y + 4, window.innerHeight - 340),
-            width:200, background:"#fff", borderRadius:12,
-            boxShadow:"0 8px 32px rgba(0,35,149,0.2)", border:`1px solid ${T.border}`,
-            zIndex:101, overflow:"hidden",
-          }} onClick={e=>e.stopPropagation()}>
-            <div style={{padding:"8px 12px", fontSize:11, fontWeight:700, color:T.textDim, background:T.surface2, borderBottom:`1px solid ${T.border}`}}>
-              <span style={{color: kines4.find(k=>k.id===contextMenu.practId)?.color}}>
-                {kines4.find(k=>k.id===contextMenu.practId)?.name}
-              </span> · {contextMenu.time}
-              <span style={{marginLeft:8, color: contextMenu.duration===30 ? T.red : T.navy, fontWeight:800}}>
-                {contextMenu.duration===30 ? "30'" : "1h"}
-              </span>
-            </div>
-            <div style={{maxHeight:260, overflowY:"auto"}}>
-              {PLAYERS.map(p => (
-                <div key={p} onClick={()=>{
-                  if (contextMenu.mode === "strap") {
-                    bookStrap(contextMenu.practId, contextMenu.date, contextMenu.time, p);
-                  } else {
-                    staffBookSlot(contextMenu.practId, contextMenu.date, contextMenu.time, p, contextMenu.duration || staffDefaultDuration);
-                  }
-                  setContextMenu(null); setStaffTarget(null);
-                }} style={{
-                  padding:"8px 12px", fontSize:13, fontWeight:600, cursor:"pointer",
-                  color:T.text, borderBottom:`1px solid ${T.border2}`, background:"#fff",
-                }}
-                onMouseEnter={e=>e.currentTarget.style.background=T.surface2}
-                onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
-                  {p}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -2577,17 +2574,17 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
   }
 
   function handleCellClick(practId, time, e) {
-    // Capturer les coordonnées immédiatement avant tout traitement async
-    const x = e ? e.clientX : window.innerWidth / 2;
-    const y = e ? e.clientY : window.innerHeight / 2;
-    const fakeE = { clientX: x, clientY: y };
-    const { booking } = getSlotStatus(kines.find(k=>k.id===practId), time);
+    if (isPastDay && subMode !== "addPlayer") return;
+    const { slotOpen, booking } = getSlotStatus(kines.find(k=>k.id===practId), time);
     if (booking) {
-      onCellClick(practId, date, time, defaultDuration, fakeE);
-      return;
+      onCellClick(practId, date, time, defaultDuration, e);
+    } else if (slotOpen) {
+      onCellClick(practId, date, time, defaultDuration, e);
+    } else {
+      openWithDuration(defaultDuration, practId, time, e);
     }
-    onCellClick(practId, date, time, defaultDuration, fakeE);
   }
+
   async function openWithDuration(duration, practId, time, e) {
     onCellClick(practId, date, time, duration, e);
   }
@@ -2681,10 +2678,7 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
           borderRight: `1px solid ${T.border}`,
           background: bg, borderLeft: bl,
           overflow: "hidden",
-          cursor: "pointer",
-        }}
-          onClick={(e) => { e.persist && e.persist(); const ct = coveringTime; e.stopPropagation(); setSelectedCell(sel => sel === `${k.id}|${ct}` ? null : `${k.id}|${ct}`); handleCellClick(k.id, ct, e); }}
-        />
+        }} />
       );
     }
 
@@ -2779,20 +2773,22 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
     let indicator = null;
 
 
-    // Créneau passé FERMÉ sans réservation → grisé non cliquable
-    // (les slots ouverts passés continuent vers la logique normale)
-    if (slotPast && !slotOpen && (!booking || (booking.cancelled && !booking.player))) {
+    // Créneau passé sans réservation (ouvert ou fermé) → grisé
+    if (slotPast && (!booking || (booking.cancelled && !booking.player))) {
       return (
         <div key={`${k.id}-${time}`} style={{
           ...commonStyle,
           background: isHour ? "#d8dce8" : "#ccd0e0",
           borderBottom: isHour ? `1px solid #b8bdd0` : `1px solid #c5c9da`,
           borderLeft: "3px solid transparent",
-          cursor: "pointer",
+          cursor: (subMode === "addPlayer" || subMode === "straps") ? "pointer" : "default",
           display:"flex", alignItems:"center", justifyContent:"center",
         }}
-          onClick={(e) => { e.stopPropagation(); setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }}
-          title="Assigner un soin" />
+          onClick={(e) => {
+            if (subMode === "addPlayer") { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }
+            else if (subMode === "straps" && isKine) { toggleStrap(k.id, date, time); }
+          }}
+          title={subMode === "addPlayer" ? "Assigner un soin rétroactif" : undefined} />
       );
     }
 
@@ -2840,10 +2836,17 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         </div>
       );
     } else if (slotOpen) {
-      // Slot ouvert sans booking → afficher + discret cliquable (pour assigner)
-      bg = isHour ? T.surface : T.surface3+"88";
-      bl = "3px solid transparent";
-      indicator = <span style={{fontSize:10, color:T.textDim, opacity:0.2}}>+</span>;
+      bg = rec ? k.color+"14" : k.color+"0c";
+      bl = rec ? `3px solid ${k.color}88` : `3px solid ${k.color}55`;
+      const dur = getSlotDuration(k.id, date, time);
+      indicator = (
+        <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:0}}>
+          <span style={{fontSize:12, color:k.color, fontWeight:800, opacity:0.7}}>
+            {rec ? "↺" : "✓"}
+          </span>
+          <span style={{fontSize:7, color:k.color+"99", fontWeight:600}}>{dur===60?"1h":"30'"}</span>
+        </div>
+      );
     } else {
       indicator = <span style={{fontSize:10, color:T.textDim, opacity:0.2}}>+</span>;
     }
@@ -2855,10 +2858,10 @@ function MultiKineDay({ kines, date, subMode, staffTarget, getBooking, isSlotOpe
         ...commonStyle,
         background: bg, borderLeft: bl,
         display:"flex", alignItems:"center", justifyContent:"center",
-        cursor: "pointer",
+        cursor: (isPastDay && subMode !== "addPlayer") ? "default" : "pointer",
       }}
-        onClick={(e) => { e.persist && e.persist(); e.stopPropagation(); setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); }}
-        title="">
+        onClick={(e) => { if (!isPastDay || subMode === "addPlayer") { setSelectedCell(sel => sel === `${k.id}|${time}` ? null : `${k.id}|${time}`); handleCellClick(k.id, time, e); } }}
+        title={booking ? `${booking.player}` : slotOpen ? `Ouvert ${getSlotDuration(k.id,date,time)===60?"1h":"30'"}` : "Fermé — cliquer pour ouvrir"}>
         {indicator}
 
       </div>
